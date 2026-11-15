@@ -4,13 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="按照偶数层相消、奇数层保留的规则，用基础图形拼出目标轮廓。">
+  <meta name="description" content="在倒计时内按奇偶消融规则拼出目标图形，挑战五道随机题。">
   <title>层叠消融</title>
   <style>
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
     :root { color: #000; background: #fff; font: 16px/1.5 Inter, system-ui, "Microsoft YaHei", sans-serif; }
-    body { margin: 0; }
+    body { margin: 0; min-height: 100vh; background-color: #fff; isolation: isolate; transition: background-color .85s, color .65s; }
+    body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 12%, #4b2019, transparent 67%); opacity: 0; transition: opacity 1s; }
     a[href] { color: #1858a1; text-underline-offset: .2em; }
     button { font: inherit; color: inherit; min-height: 44px; padding: .42rem .72rem; border: 1px solid #ccc; border-radius: .48rem; background: #fff; cursor: pointer; }
     button:where(:not(:disabled)):hover { border-color: #111; }
@@ -28,18 +29,25 @@
     .levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .42rem; }
     .levels button { padding: .4rem .18rem; font-size: .88rem; }
     .levels button[aria-current="step"], .pieces button[aria-pressed="true"] { background: #eee; border-color: #000; font-weight: 700; }
-    .stage { display: flex; justify-content: space-between; align-items: center; gap: .65rem; margin: .95rem 0 .65rem; }
+    .stage { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem .65rem; margin: .95rem 0 .65rem; }
     .stage h2 { font-size: clamp(1.25rem, 4.5vw, 1.67rem); }
-    .score { flex: none; font-weight: 700; padding: .33rem .65rem; border: 1px solid #c6c6c6; border-radius: .48rem; font-variant-numeric: tabular-nums; }
-    .boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+    .stage-stats { display: flex; gap: .42rem; }
+    .stat { flex: none; font-weight: 700; padding: .33rem .65rem; border: 1px solid #c6c6c6; border-radius: .48rem; font-variant-numeric: tabular-nums; }
+    #timer { min-width: 4.4rem; text-align: center; }
+    .boards { display: grid; grid-template-columns: minmax(150px, .72fr) minmax(0, 1fr); gap: .9rem; align-items: start; }
     .panel { min-width: 0; padding: .7rem; border: 1px solid #ddd; border-radius: .7rem; }
     .panel h3 { font-size: 1rem; }
-    .board { display: block; width: 100%; aspect-ratio: 1; margin: .4rem auto 0; border-radius: .45rem; background: #f7f7f7; }
+    .board { display: block; width: 100%; aspect-ratio: 1; margin: .4rem auto 0; border: 1px solid #43526a; border-radius: .45rem; background: radial-gradient(ellipse at center, #26334a, #141b28); }
+    .target-window { position: relative; }
+    .target-window .concealed { visibility: hidden; }
+    .target-message { position: absolute; inset: 0; display: grid; place-items: center; padding: .55rem; text-align: center; color: #eee1d6; background: #2a1614; border: 1px solid #674033; border-radius: .45rem; font-size: .92rem; }
+    #peek { margin-top: .45rem; }
     .play-board { touch-action: none; cursor: crosshair; }
     .piece-guide { margin: .85rem 0 .42rem; font-size: .91rem; }
-    .pieces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; }
-    .pieces button { display: grid; justify-items: center; min-width: 0; gap: .13rem; padding: .24rem .2rem .3rem; font-size: .78rem; touch-action: manipulation; }
-    .pieces canvas { width: min(100%, 72px); aspect-ratio: 1; display: block; }
+    .pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: .4rem; }
+    .pieces button { display: grid; justify-items: center; min-width: 0; gap: .28rem; padding: .3rem .25rem; font-size: .78rem; cursor: grab; touch-action: none; }
+    .pieces button:active { cursor: grabbing; }
+    .pieces canvas { width: min(100%, 72px); aspect-ratio: 1; display: block; background: #1e293a; border-radius: .28rem; }
     .actions { margin-top: .8rem; display: flex; flex-wrap: wrap; gap: .4rem; }
     .primary { border-color: #111; background: #eee; font-weight: 700; }
     .primary:not(:disabled):hover { background: #e3e3e3; }
@@ -47,9 +55,63 @@
     .board-tools { margin-top: .7rem; }
     .board-tools summary { cursor: pointer; font-weight: 700; }
     .board-tools p { margin: .4rem 0 0; font-size: .92rem; max-width: 48rem; }
-    .completion { margin-top: 1.25rem; }
-    .completion h2 { font-size: clamp(1.4rem, 5vw, 2rem); }
+    .completion, .timeout, .achievement { margin-top: 1.25rem; }
+    .completion h2, .timeout h2, .achievement h2 { font-size: clamp(1.4rem, 5vw, 2rem); }
     .completion output { display: block; font-size: 2.25rem; font-weight: 700; margin: .4rem 0; }
+    .timeout p { margin: .4rem 0 .75rem; }
+    .fireworks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+    .hidden-offer { margin-top: .95rem; padding: .9rem; border: 1px solid #8b4936; border-radius: .55rem; }
+    .hidden-offer p, .achievement p { margin: .35rem 0 .65rem; }
+    .achievement { text-align: center; padding-block: 1.7rem; }
+    .achievement-mark { display: grid; place-items: center; width: 74px; aspect-ratio: 1; margin: 0 auto .68rem; border: 2px solid #d48454; border-radius: 50%; background: radial-gradient(circle, #6a2d1f 49%, #321716 50%, #321716 59%, #a45d3b 60%, #452019 62%); color: #ffe4bb; font: 2.5rem/1 system-ui, sans-serif; }
+    .hell { background-color: #170c0c; color: #fff1e8; }
+    .hell::before { opacity: 1; }
+    .hell .panel, .hell .hidden-offer { background: #241310; border-color: #754736; }
+    .hell .top, .hell .footer, .hell .results li { border-color: #754736; }
+    .hell button, .hell .stat { background: #36201a; border-color: #95634f; color: #fff1e8; }
+    .hell button:hover, .hell .pieces button[aria-pressed="true"] { background: #593026; border-color: #ffc4a1; color: #fff1e8; }
+    .hell :focus-visible { outline-color: #ffc4a1; }
+    .hell a[href] { color: #acd5fb; }
+    .hell .board { background: radial-gradient(ellipse at center, #4c2721, #241211); border-color: #8b5041; }
+    .hell .pieces canvas { background: #49231d; }
+    .fracture { position: fixed; inset: 0; z-index: 2; pointer-events: none; animation: fracture-wash .84s ease-out both; }
+    .fracture b { position: absolute; inset: 0; transform-origin: 50% 50%; background: linear-gradient(137deg, #fff9ed, #eebda1); animation: fracture-shard .84s ease-out both; }
+    .fracture b:nth-child(1) { clip-path: polygon(50% 50%, 33% 43%, 27% 31%, 0 25%, 0 0, 35% 0, 44% 23%, 43% 29%); --scatter: -18vw, -18vh; --spin: -17deg; }
+    .fracture b:nth-child(2) { clip-path: polygon(50% 50%, 43% 29%, 44% 23%, 35% 0, 64% 0, 57% 25%, 59% 34%); --scatter: 0, -27vh; --spin: 9deg; }
+    .fracture b:nth-child(3) { clip-path: polygon(50% 50%, 59% 34%, 57% 25%, 64% 0, 100% 0, 100% 22%, 77% 30%, 68% 43%); --scatter: 20vw, -19vh; --spin: 17deg; }
+    .fracture b:nth-child(4) { clip-path: polygon(50% 50%, 68% 43%, 77% 30%, 100% 22%, 100% 65%, 83% 59%, 70% 65%, 62% 57%); --scatter: 26vw, 2vh; --spin: -13deg; }
+    .fracture b:nth-child(5) { clip-path: polygon(50% 50%, 62% 57%, 70% 65%, 83% 59%, 100% 65%, 100% 100%, 65% 100%, 60% 75%, 55% 68%); --scatter: 19vw, 21vh; --spin: 16deg; }
+    .fracture b:nth-child(6) { clip-path: polygon(50% 50%, 55% 68%, 60% 75%, 65% 100%, 35% 100%, 40% 79%, 37% 67%); --scatter: -1vw, 27vh; --spin: -10deg; }
+    .fracture b:nth-child(7) { clip-path: polygon(50% 50%, 37% 67%, 40% 79%, 35% 100%, 0 100%, 0 69%, 24% 62%, 35% 55%); --scatter: -21vw, 21vh; --spin: -18deg; }
+    .fracture b:nth-child(8) { clip-path: polygon(50% 50%, 35% 55%, 24% 62%, 0 69%, 0 25%, 27% 31%, 33% 43%); --scatter: -25vw, 1vh; --spin: 14deg; }
+    .fracture i { position: absolute; top: 50%; left: 50%; width: 71vmin; height: 2px; background: linear-gradient(90deg, #fff7d4, #f2a15c, #c4422c, transparent); transform-origin: left; animation: fracture-ray .84s ease-out both; }
+    .fracture i:nth-of-type(1) { --angle: 9deg; }
+    .fracture i:nth-of-type(2) { --angle: 51deg; }
+    .fracture i:nth-of-type(3) { --angle: 112deg; }
+    .fracture i:nth-of-type(4) { --angle: 168deg; }
+    .fracture i:nth-of-type(5) { --angle: 219deg; }
+    .fracture i:nth-of-type(6) { --angle: 271deg; }
+    .fracture i:nth-of-type(7) { --angle: 317deg; }
+    @keyframes fracture-wash {
+      0% { background: #180b0b00; }
+      22% { background: radial-gradient(ellipse, #ffb46199, #2b0c0c55 65%); }
+      100% { background: #180b0b00; }
+    }
+    @keyframes fracture-ray {
+      0% { transform: rotate(var(--angle)) scaleX(0); opacity: .95; }
+      39% { transform: rotate(var(--angle)) scaleX(1); opacity: 1; }
+      100% { transform: rotate(var(--angle)) scaleX(1); opacity: 0; }
+    }
+    @keyframes fracture-shard {
+      0% { transform: translate(0, 0) rotate(0); opacity: 0; }
+      16% { transform: translate(0, 0) rotate(0); opacity: .87; }
+      42% { opacity: .7; }
+      100% { transform: translate(var(--scatter)) rotate(var(--spin)); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      body, body::before { transition: none; }
+      .fracture { display: none; }
+    }
     .results { margin: .5rem 0 .8rem; padding: 0; list-style: none; }
     .results li { display: flex; align-items: center; justify-content: space-between; gap: .55rem; padding: .36rem 0; border-top: 1px solid #ddd; }
     .footer { margin-top: 1.2rem; padding: .85rem 0 1.4rem; font-size: .83rem; border-top: 1px solid #ddd; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; }
@@ -76,18 +138,26 @@
   <main class="wrap">
     <section class="intro">
       <h1 data-en="Layer Overlay Puzzle">层叠消融</h1>
-      <p data-en="Slide the pieces to match the target. A line covered an even number of times disappears. An odd number of layers leaves it visible.">平移图块，拼出目标轮廓。同一线段叠偶数次会消失，叠奇数次会保留。</p>
+      <p data-en="Slide the filled pieces to match the target. Even overlaps disappear and odd overlaps remain.">平移实心图块，拼出目标图形。重叠区域逢偶相消，逢奇保留。</p>
     </section>
     <section id="game" aria-labelledby="stage-title">
       <nav id="levels" class="levels" aria-label="选择关卡" data-en-label="Choose a level"></nav>
       <div class="stage">
         <h2 id="stage-title" tabindex="-1"></h2>
-        <output id="score" class="score" aria-label="累计分数" data-en-label="Total score"></output>
+        <div class="stage-stats">
+          <output id="timer" class="stat" role="timer" aria-label="本关剩余时间" data-en-label="Time remaining for this level"></output>
+          <output id="score" class="stat" aria-label="累计分数" data-en-label="Total score"></output>
+        </div>
       </div>
       <div class="boards">
         <section class="panel">
           <h3 data-en="Target">目标图形</h3>
-          <canvas id="target" class="board target-board" width="512" height="512" role="img" aria-label="本关目标线条" data-en-label="Target lines for this level"></canvas>
+          <div class="target-window">
+            <canvas id="target" class="board target-board" width="512" height="512" role="img" aria-label="本关目标图形" data-en-label="Target silhouette for this level"></canvas>
+            <p id="target-message" class="target-message" data-en="Target hidden" hidden>目标已隐藏</p>
+          </div>
+          <button id="peek" type="button" hidden data-en="View target again">复看目标</button>
+          <p id="memory-rules" class="piece-guide" hidden data-en="The target disappears after your first placement. Viewing it again locks the board for 10 seconds while the timer continues.">首次放置后，目标会隐藏。每次复看会锁定棋盘 10 秒，倒计时继续。</p>
         </section>
         <section class="panel">
           <h3 data-en="Your board">拼图区</h3>
@@ -95,27 +165,49 @@
             aria-label="拼图棋盘。方向键移动锚点，回车放置选中图块。" data-en-label="Puzzle board. Move the anchor with arrow keys and press Enter to place the selected piece."></canvas>
         </section>
       </div>
-      <p class="piece-guide" data-en="Select a piece, then tap or drag on the board to position its anchor dot. Select it again to move it.">选中图块后，在棋盘上点按或拖动定位锚点。再次选中该图块可调整位置。</p>
+      <p class="piece-guide" data-en="Drag a piece onto the board, or select it and tap a position for its anchor dot. Select a placed piece to move it again.">把图块拖到棋盘，或选中后点按锚点位置。再次选中已放置的图块即可移动它。</p>
       <div id="pieces" class="pieces" role="group" aria-label="基础图块" data-en-label="Puzzle pieces"></div>
       <div class="actions">
-        <button id="check" class="primary" type="button" data-en="Check puzzle">检查图案</button>
         <button id="undo" type="button" data-en="Undo">撤销</button>
         <button id="clear" type="button" data-en="Clear board">清空棋盘</button>
-        <button id="next" type="button" hidden data-en="Next level →">下一关 →</button>
         <button id="back-results" type="button" hidden data-en="Back to results">返回通关结果</button>
       </div>
       <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
       <details class="board-tools">
         <summary data-en="Rules and scoring">玩法与计分</summary>
-        <p data-en="Use each piece once. Keep each piece in its original orientation. The dotted preview shows the selected piece before placement. Click Check puzzle when your visible lines match the target. Each level earns points once.">每块图形使用一次，可以平移。虚线预览显示选中图块将放到哪里。可见的线条与目标完全相同时提交。每关的分数只计一次。</p>
+        <p data-en="Use each piece once and keep its original orientation. The translucent shape previews its placement. Match the target before time runs out to advance automatically. Levels give 1, 1, 2, 3, and 3 points, counted once each.">每块图形使用一次，保持原方向。半透明图形是放置预览。在倒计时结束前拼出目标即可自动晋级。五关依次为 1、1、2、3、3 分，每关只计一次。</p>
       </details>
+    </section>
+    <section id="timeout" class="timeout panel" aria-labelledby="timeout-title" hidden>
+      <h2 id="timeout-title" tabindex="-1" data-en="Time's up">时间到，挑战失败</h2>
+      <p data-en="Retry this level with a new puzzle. Points from cleared levels are saved.">可以用一道新题重试本关，已通过的关卡保留得分。</p>
+      <button id="retry" type="button" class="primary" data-en="Retry this level">重试本关</button>
     </section>
     <section id="completion" class="completion panel" aria-labelledby="completion-title" hidden>
       <h2 id="completion-title" tabindex="-1" data-en="Congratulations! All five levels cleared.">恭喜，五关全部通过！</h2>
       <output id="final-score" aria-label="最终得分" data-en-label="Final score"></output>
       <ul id="results" class="results"></ul>
       <button id="restart" type="button" class="primary" data-en="Play again">重新挑战</button>
+      <aside id="hidden-offer" class="hidden-offer" aria-labelledby="hidden-offer-title" hidden>
+        <h3 id="hidden-offer-title" tabindex="-1" data-en="Hidden level unlocked">隐藏第六关已开启</h3>
+        <p data-en="Hell difficulty. Fit eight pieces in five minutes. The target disappears as soon as you begin placing pieces.">地狱难度。五分钟内拼合八块图形，开始作答后，目标图形将隐藏。</p>
+        <div class="actions">
+          <button id="hidden-accept" type="button" class="primary" data-en="Challenge the hidden level">挑战隐藏关</button>
+          <button id="hidden-decline" type="button" data-en="Keep my five-level result">保留五关成绩</button>
+        </div>
+      </aside>
     </section>
+    <section id="achievement" class="achievement panel" aria-labelledby="achievement-title" hidden>
+      <span class="achievement-mark" aria-hidden="true">✦</span>
+      <h2 id="achievement-title" tabindex="-1" data-en="Master of Overlays">消融之王</h2>
+      <p data-en="You cleared all five levels and conquered the hidden sixth level.">你已通过全部五关，拿下地狱难度的隐藏第六关。</p>
+      <button id="achievement-restart" type="button" class="primary" data-en="Play again">重新挑战</button>
+    </section>
+    <canvas id="fireworks" class="fireworks" aria-hidden="true" hidden></canvas>
+    <div id="fracture" class="fracture" aria-hidden="true" hidden>
+      <b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b>
+      <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+    </div>
     <noscript><p data-en="Enable JavaScript to play.">请启用 JavaScript 开始游戏。</p></noscript>
   </main>
   <footer class="wrap footer">
@@ -125,63 +217,148 @@
   <script>
     'use strict';
 
-    const puzzles = [
-      {
-        size: 5,
-        pieces: [
-          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
-          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]]
-        ],
-        placements: [[0,1],[2,1]],
-      },
-      {
-        size: 6,
-        pieces: [
-          [[0,2,1,1],[1,1,2,0],[2,0,3,1],[3,1,4,2],[3,2,4,2],[2,2,3,2],[1,2,2,2],[0,2,1,2]],
-          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,3,1],[3,1,3,2],[2,2,3,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
-          [[0,0,1,0],[1,0,1,1],[0,1,1,1],[0,0,0,1]]
-        ],
-        placements: [[0,1],[1,3],[4,4]],
-      },
-      {
-        size: 7,
-        pieces: [
-          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[4,1,5,0],[3,1,4,1],[2,1,3,1],[1,1,2,1],[0,0,1,1]],
-          [[0,0,1,1],[1,1,2,2],[2,2,3,3],[2,3,3,3],[1,3,2,3],[0,3,1,3],[0,2,0,3],[0,1,0,2],[0,0,0,1]],
-          [[0,2,1,1],[1,1,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2]]
-        ],
-        placements: [[1,4],[3,1],[1,2]],
-      },
-      {
-        size: 8,
-        pieces: [
-          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
-          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
-          [[0,0,1,1],[1,1,2,2],[2,2,3,3],[2,4,3,3],[1,5,2,4],[0,6,1,5],[0,5,0,6],[0,4,0,5],[0,3,0,4],[0,2,0,3],[0,1,0,2],[0,0,0,1]],
-          [[0,0,1,1],[0,2,1,1],[0,1,0,2],[0,0,0,1]]
-        ],
-        placements: [[0,3],[2,3],[4,1],[0,3]],
-      },
-      {
-        size: 9,
-        pieces: [
-          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[5,0,6,0],[5,1,6,0],[4,2,5,1],[3,3,4,2],[2,2,3,3],[1,1,2,2],[0,0,1,1]],
-          [[0,3,1,2],[1,2,2,1],[2,1,3,0],[3,0,4,1],[4,1,5,2],[5,2,6,3],[5,3,6,3],[4,3,5,3],[3,3,4,3],[2,3,3,3],[1,3,2,3],[0,3,1,3]],
-          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[5,0,6,0],[6,0,7,0],[7,0,8,0],[8,0,8,1],[7,1,8,1],[6,1,7,1],[5,1,6,1],[4,1,5,1],[3,1,4,1],[2,1,3,1],[1,1,2,1],[0,1,1,1],[0,0,0,1]],
-          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[5,0,6,0],[6,0,7,0],[7,0,8,0],[8,0,8,1],[7,1,8,1],[6,1,7,1],[5,1,6,1],[4,1,5,1],[3,1,4,1],[2,1,3,1],[1,1,2,1],[0,1,1,1],[0,0,0,1]],
-          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,1,2,2],[0,0,1,1]]
-        ],
-        placements: [[1,1],[1,4],[0,0],[0,7],[2,2]],
-      },
+    const durations = [10, 9, 8, 7, 5, 5];
+    const regionSizes = [
+      [10, 12, 13, 15], [10, 12, 13, 14, 16], [12, 13, 14, 15, 17, 19],
+      [14, 15, 16, 17, 19, 20, 22], [16, 17, 18, 19, 20, 22, 24, 25], [20, 22, 24, 26, 27, 29, 31, 34],
     ];
+    const hiddenIndex = durations.length - 1;
+    const lastVariants = durations.map(() => null);
+    const randomIndex = count => Math.floor(Math.random() * count);
+    const pick = choices => choices[randomIndex(choices.length)];
+
+    function makeLattice(size) {
+      const cells = [];
+      const neighbors = [];
+      const owners = new Map();
+
+      function addCell(vertices) {
+        const index = cells.length;
+        const sides = vertices.map(([x, y], i) => [x, y, ...vertices[(i + 1) % vertices.length]]);
+        cells.push(vertices.flat());
+        neighbors.push([]);
+        for (const side of sides) {
+          const key = edgeKey(side);
+          if (owners.has(key)) {
+            const other = owners.get(key);
+            neighbors[index].push(other);
+            neighbors[other].push(index);
+          } else owners.set(key, index);
+        }
+      }
+
+      for (let y = 0; y < size - 1; y++) for (let x = 0; x < size - 1; x++) {
+        const quad = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]];
+        // Four quarter triangles per square support both diagonals after integer translation.
+        for (let corner = 0; corner < 4; corner++) addCell([quad[corner], quad[(corner + 1) % 4], [x + .5, y + .5]]);
+      }
+      return {cells, neighbors};
+    }
+
+    function assemblePuzzle(size, regions) {
+      const placements = [];
+      const pieces = regions.map(region => {
+        const anchor = originOf(region);
+        placements.push(anchor);
+        return translated(region, anchor.map(value => -value));
+      });
+      return {size, pieces, placements, target: oddTiles(pieces, placements)};
+    }
+
+    function growPuzzle(index, size, lattice) {
+      const {cells, neighbors} = lattice;
+      const occupied = new Set();
+      const regions = [];
+      const shapes = new Set();
+      const visible = new Set();
+      for (const base of regionSizes[index]) {
+        const count = base + randomIndex(3);
+        const starts = occupied.size ? [...occupied] : [...cells.keys()];
+        let placed = false;
+        for (let attempt = 0; attempt < 22; attempt++) {
+          const region = new Set([pick(starts)]);
+          while (region.size < count) {
+            const frontier = [...new Set([...region].flatMap(id => neighbors[id]).filter(id => !region.has(id)))];
+            if (!frontier.length) break;
+            region.add(pick(frontier));
+          }
+          if (region.size < count) continue;
+          const tiles = [...region].map(id => cells[id]);
+          const signature = shapeKey(tiles);
+          const keys = tiles.map(tileKey);
+          const shared = keys.filter(key => visible.has(key)).length;
+          // A new piece must cancel a substantial filled area and add a visibly different shape.
+          if (shapes.has(signature) || (regions.length && (shared < Math.max(3, Math.floor(count / 4)) || shared * 4 >= count * 3))) continue;
+          for (const key of keys) {
+            if (visible.has(key)) visible.delete(key);
+            else visible.add(key);
+          }
+          for (const id of region) occupied.add(id);
+          regions.push(tiles);
+          shapes.add(signature);
+          placed = true;
+          break;
+        }
+        if (!placed) return null;
+      }
+      return visible.size >= 14 ? assemblePuzzle(size, regions) : null;
+    }
+
+    function stripPuzzle(index, size, variation) {
+      // Overlapping strips guarantee a valid target even if randomized growth cannot find a board.
+      const {cells} = makeLattice(size);
+      const regions = regionSizes[index].map((_, x) => {
+        const height = 2 + (x % 3) + Number(x === variation);
+        const shift = x % 2;
+        return Array.from({length: height}, (_, y) => {
+          const start = 4 * ((y + shift) * (size - 1) + x);
+          return cells.slice(start, start + 8);
+        }).flat();
+      });
+      return assemblePuzzle(size, regions);
+    }
+
+    function puzzleSignature({pieces, target}) {
+      return [pieces.map(shapeKey).sort().join('|'), shapeKey([...target.values()])].join('~');
+    }
+
+    function generatePuzzle(index) {
+      const size = index + 7;
+      const lattice = makeLattice(size);
+      const key = 'mybian-overlay-last-' + index;
+      let previous = lastVariants[index];
+      try { previous ??= sessionStorage.getItem(key); } catch {}
+      let candidate;
+      let signature;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        candidate = growPuzzle(index, size, lattice);
+        if (!candidate) continue;
+        signature = puzzleSignature(candidate);
+        if (signature !== previous) break;
+      }
+      if (!candidate || signature === previous) {
+        // Put one tall piece near either end, producing distinct fallback silhouettes.
+        candidate = stripPuzzle(index, size, -1);
+        signature = puzzleSignature(candidate);
+        if (signature === previous) {
+          candidate = stripPuzzle(index, size, 0);
+          signature = puzzleSignature(candidate);
+        }
+      }
+      lastVariants[index] = signature;
+      try { sessionStorage.setItem(key, signature); } catch {}
+      return candidate;
+    }
+
     const points = [1, 1, 2, 3, 3];
     const total = points.reduce((sum, mark) => sum + mark, 0);
     const captions = [
-      ['两块叠合', 'First overlap'],
+      ['多块叠合', 'First overlays'],
       ['交错拼接', 'Interlocking outlines'],
       ['斜线交织', 'Diagonal crossing'],
       ['多层消融', 'Multiple overlaps'],
       ['终极图阵', 'Final pattern'],
+      ['隐藏第六关 · 地狱图阵', 'Hidden level 6 · Hell pattern'],
     ];
 
     const $ = id => document.getElementById(id);
@@ -192,9 +369,10 @@
       start: ['选一块图形，开始拼接。', 'Select a piece to begin.'],
       placed: ['图块已放置。', 'Piece placed.'],
       outside: ['图块必须完整放在棋盘内。', 'The whole piece must fit on the board.'],
-      missing: ['请先放上所有图块。', 'Place every piece before checking.'],
-      mismatch: ['可见线条还没有与目标重合，试试移动图块。', 'The visible lines differ from the target. Try moving a piece.'],
-      solved: ['图案匹配，已通关！', 'It matches. Level cleared!'],
+      mismatch: ['可见图形还没有与目标重合，试试移动图块。', 'The filled shape differs from the target. Try moving a piece.'],
+      advanced: ['上一关已通过，新的题目已开始。', 'Level cleared. The next puzzle has started.'],
+      peeking: ['正在复看，棋盘暂时锁定。', 'The target is visible and the board is locked.'],
+      resumed: ['复看结束，继续挑战。', 'Review finished. Continue solving.'],
       undone: ['已撤销上一步。', 'Last placement undone.'],
       cleared: ['棋盘已清空。', 'Board cleared.'],
     };
@@ -207,7 +385,18 @@
     const staticLabels = Array.from(document.querySelectorAll('[data-en-label]'), element => [element, element.getAttribute('aria-label')]);
 
     let current = 0;
-    let passed = puzzles.map(() => false);
+    let passed = durations.map(() => false);
+    let activePuzzle;
+    let stageState = 'idle';
+    let deadline;
+    let clock = null;
+    let fireworksFrame = null;
+    let revealTimer = null;
+    let hiddenOffer = 'waiting';
+    let targetMemorized = false;
+    let peekEnds = 0;
+    let trayDrag = null;
+    let suppressTileClick = false;
     let positions = [];
     let history = [];
     let selected = 0;
@@ -215,27 +404,29 @@
     let dragging = false;
     let note = 'start';
 
-    const puzzle = () => puzzles[current];
-    const cleared = () => passed.every(Boolean);
+    const puzzle = () => activePuzzle;
+    const cleared = () => passed.slice(0, hiddenIndex).every(Boolean);
     const score = () => points.reduce((sum, value, index) => sum + (passed[index] ? value : 0), 0);
     const scoreText = () => t(`${score()} / ${total} 分`, `${score()} / ${total} pts`);
     const levelText = index => t(`第 ${index + 1} 关`, `Level ${index + 1}`);
     const pieceText = index => t(`图块 ${index + 1}`, `Piece ${index + 1}`);
-    const pieceBounds = piece => [
-      Math.max(...piece.flatMap(([x1, , x2]) => [x1, x2])),
-      Math.max(...piece.flatMap(([, y1, , y2]) => [y1, y2])),
-    ];
-    const translated = (piece, [x, y]) => piece.map(([x1, y1, x2, y2]) => [x1 + x, y1 + y, x2 + x, y2 + y]);
+    const coordinates = (piece, axis) => piece.flatMap(tile => [tile[axis], tile[axis + 2], tile[axis + 4]]);
+    const pieceBounds = piece => [0, 1].map(axis => Math.max(...coordinates(piece, axis)));
+    const originOf = piece => [0, 1].map(axis => Math.floor(Math.min(...coordinates(piece, axis))));
+    const translated = (piece, anchor) => piece.map(tile => tile.map((value, axis) => value + anchor[axis % 2]));
+    const edgeKey = ([x1, y1, x2, y2]) =>
+      (x1 < x2 || (x1 === x2 && y1 < y2) ? [x1, y1, x2, y2] : [x2, y2, x1, y1]).join(',');
+    const tileKey = ([x1, y1, x2, y2, x3, y3]) => [x1, y1, x2, y2, x3, y3].toString();
+    const shapeKey = piece => translated(piece, originOf(piece).map(value => -value)).map(tileKey).sort().join(';');
 
-    function oddSegments(pieces, locations) {
+    function oddTiles(pieces, locations) {
       const visible = new Map();
       pieces.forEach((piece, index) => {
         if (!locations[index]) return;
-        for (const segment of translated(piece, locations[index])) {
-          const [x1, y1, x2, y2] = segment;
-          const key = (x1 < x2 || (x1 === x2 && y1 < y2) ? segment : [x2, y2, x1, y1]).join(',');
+        for (const tile of translated(piece, locations[index])) {
+          const key = tileKey(tile);
           if (visible.has(key)) visible.delete(key);
-          else visible.set(key, segment);
+          else visible.set(key, tile);
         }
       });
       return visible;
@@ -250,41 +441,37 @@
       ];
     }
 
-    function draw(canvas, lines, size, {grid = false, preview = [], anchor = null} = {}) {
+    function draw(canvas, tiles, size, {grid = false, boardSized = grid, preview = [], anchor = null} = {}) {
       const ctx = canvas.getContext('2d');
       const side = canvas.width;
-      const inset = grid ? 36 : 9;
+      const inset = boardSized ? 36 : 9;
       const step = (side - 2 * inset) / Math.max(1, size - 1);
       ctx.clearRect(0, 0, side, side);
       if (grid) {
-        ctx.fillStyle = '#b9b9b9';
+        ctx.fillStyle = current === hiddenIndex ? '#9d6e5d' : '#668099';
         for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
           ctx.beginPath();
-          ctx.arc(inset + x * step, inset + y * step, 1.6, 0, Math.PI * 2);
+          ctx.arc(inset + x * step, inset + y * step, 1.7, 0, Math.PI * 2);
           ctx.fill();
         }
       }
-      function stroke(segments, color, lineWidth) {
-        ctx.strokeStyle = color;
-        ctx.lineWidth = lineWidth;
+      function fill(shapes, color) {
+        ctx.fillStyle = color;
         ctx.beginPath();
-        for (const [x1, y1, x2, y2] of segments) {
+        for (const [x1, y1, x2, y2, x3, y3] of shapes) {
           ctx.moveTo(inset + x1 * step, inset + y1 * step);
           ctx.lineTo(inset + x2 * step, inset + y2 * step);
+          ctx.lineTo(inset + x3 * step, inset + y3 * step);
+          ctx.closePath();
         }
-        ctx.stroke();
+        ctx.fill();
       }
-      ctx.lineCap = 'round';
-      stroke(lines, '#171717', grid ? 5.6 : 3.5);
-      if (preview.length) {
-        ctx.setLineDash([9, 7]);
-        stroke(preview, '#777', 4);
-        ctx.setLineDash([]);
-      }
+      fill(tiles, current === hiddenIndex ? '#ffd6b4' : canvas.id === 'target' ? '#aaf0fa' : '#f2f7fb');
+      if (preview.length) fill(preview, current === hiddenIndex ? '#ed825b8c' : '#75bbdb82');
       if (anchor) {
         const [x, y] = anchor;
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = grid ? 2.5 : 1.6;
+        ctx.strokeStyle = current === hiddenIndex ? '#ff9165' : '#70d6e5';
+        ctx.lineWidth = grid ? 2.5 : 1.8;
         ctx.beginPath();
         ctx.arc(inset + x * step, inset + y * step, grid ? 7 : 3.4, 0, Math.PI * 2);
         ctx.stroke();
@@ -293,12 +480,12 @@
 
     function fits([x, y]) {
       const [right, bottom] = pieceBounds(puzzle().pieces[selected]);
-      return x >= 0 && y >= 0 && x + right < puzzle().size && y + bottom < puzzle().size;
+      return x >= 0 && y >= 0 && x + right <= puzzle().size - 1 && y + bottom <= puzzle().size - 1;
     }
 
     function drawBoard() {
       const {size, pieces} = puzzle();
-      const partial = oddSegments(pieces, positions);
+      const partial = oddTiles(pieces, positions);
       const isPreview = cursor && fits(cursor);
       draw(board, partial.values(), size, {
         grid: true,
@@ -308,13 +495,14 @@
     }
 
     function drawTarget() {
-      const {size, pieces, placements} = puzzle();
-      draw($('target'), oddSegments(pieces, placements).values(), size, {grid: true});
+      const {size, target} = puzzle();
+      draw($('target'), target.values(), size, {boardSized: true});
     }
 
     function renderProgress() {
-      const available = passed.indexOf(false);
-      nav.replaceChildren(...puzzles.map((_, index) => {
+      const available = passed.slice(0, hiddenIndex).indexOf(false);
+      nav.hidden = current === hiddenIndex;
+      nav.replaceChildren(...points.map((_, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = levelText(index) + (passed[index] ? ' ✓' : '');
@@ -326,7 +514,6 @@
       $('stage-title').textContent = t(...captions[current]);
       $('score').textContent = scoreText();
       $('back-results').hidden = !cleared();
-      $('next').hidden = !passed[current] || current === puzzles.length - 1 || cleared();
     }
 
     function renderPieces() {
@@ -340,26 +527,22 @@
         const label = document.createElement('span');
         button.append(image, label);
         draw(image, piece, Math.max(...pieceBounds(piece)) + 1, {anchor: [0, 0]});
-        button.addEventListener('click', () => {
-          selected = index;
-          cursor = positions[index];
-          updatePieces();
-          drawBoard();
-        });
         return button;
       }));
       updatePieces();
     }
 
     function updatePieces() {
+      const locked = peekEnds !== 0;
       for (const button of tray.children) {
         const index = Number(button.dataset.piece);
         button.setAttribute('aria-pressed', String(index === selected));
         button.setAttribute('aria-label', pieceText(index) + (positions[index] ? t('，已放置', ', placed') : ''));
         button.lastChild.textContent = (index + 1) + (positions[index] ? ' ✓' : '');
+        button.disabled = locked;
       }
-      $('undo').disabled = !history.length;
-      $('clear').disabled = !positions.some(Boolean);
+      $('undo').disabled = locked || !history.length;
+      $('clear').disabled = locked || !positions.some(Boolean);
     }
 
     function say(key) {
@@ -367,25 +550,88 @@
       $('feedback').textContent = t(...notes[key]);
     }
 
-    function enter(index, focus = true) {
+    function stopClock() {
+      if (clock !== null) clearInterval(clock);
+      clock = null;
+    }
+
+    function updateClock() {
+      if (stageState !== 'playing') return false;
+      const now = performance.now();
+      const left = Math.max(0, Math.ceil((deadline - now) / 1000));
+      const formatted = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
+      if ($('timer').textContent !== formatted) $('timer').textContent = formatted;
+      if (left > 0) {
+        if (peekEnds && now >= peekEnds) {
+          peekEnds = 0;
+          renderMemory();
+          updatePieces();
+          say('resumed');
+        }
+        return true;
+      }
+      stageState = 'expired';
+      stopClock();
+      dragging = false;
+      $('game').hidden = true;
+      $('timeout').hidden = false;
+      $('timeout-title').focus();
+      return false;
+    }
+
+    const canMove = () => updateClock() && peekEnds === 0;
+
+    function renderMemory() {
+      const memory = current === hiddenIndex;
+      const hidden = memory && targetMemorized && !peekEnds;
+      $('target').classList.toggle('concealed', hidden);
+      $('target').setAttribute('aria-hidden', String(hidden));
+      $('target-message').hidden = !hidden;
+      $('peek').hidden = !memory || !targetMemorized;
+      $('peek').disabled = Boolean(peekEnds);
+      $('memory-rules').hidden = !memory;
+      board.setAttribute('aria-disabled', String(Boolean(peekEnds)));
+    }
+
+    function enter(index, focus = true, initialNote = 'start') {
+      stopClock();
+      stopFireworks();
+      cancelReveal();
       current = index;
+      document.body.classList.toggle('hell', index === hiddenIndex);
+      activePuzzle = generatePuzzle(index);
       positions = puzzle().pieces.map(() => null);
       history = [];
       selected = 0;
       cursor = null;
       dragging = false;
+      trayDrag = null;
+      peekEnds = 0;
+      targetMemorized = false;
+      stageState = 'playing';
+      deadline = performance.now() + durations[index] * 60000;
       $('game').hidden = false;
+      $('timeout').hidden = true;
       $('completion').hidden = true;
+      $('achievement').hidden = true;
       renderProgress();
       renderPieces();
+      renderMemory();
       drawTarget();
       drawBoard();
-      say('start');
+      say(initialNote);
+      updateClock();
+      clock = setInterval(updateClock, 250);
       if (focus) $('stage-title').focus();
     }
 
-    function showResults(focus = true) {
+    function showResults(focus = true, celebrating = false) {
+      stageState = 'finished';
+      stopClock();
+      dragging = false;
       $('game').hidden = true;
+      $('timeout').hidden = true;
+      $('achievement').hidden = true;
       $('completion').hidden = false;
       $('final-score').textContent = scoreText();
       $('results').replaceChildren(...points.map((value, index) => {
@@ -401,9 +647,120 @@
         return row;
       }));
       if (focus) $('completion-title').focus();
+      if (celebrating) launchFireworks();
+      if (hiddenOffer === 'waiting') queueHiddenOffer(celebrating);
+      if (hiddenOffer === 'offered') document.body.classList.add('hell');
+      $('hidden-offer').hidden = hiddenOffer !== 'offered';
+    }
+
+    function cancelReveal() {
+      if (revealTimer !== null) clearTimeout(revealTimer);
+      revealTimer = null;
+      $('fracture').hidden = true;
+      if (hiddenOffer === 'revealing') hiddenOffer = 'waiting';
+    }
+
+    function queueHiddenOffer(celebrating) {
+      hiddenOffer = 'revealing';
+      const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+      function offer() {
+        revealTimer = null;
+        $('fracture').hidden = true;
+        hiddenOffer = 'offered';
+        $('hidden-offer').hidden = false;
+        $('hidden-offer-title').focus();
+      }
+      if (reduced) {
+        document.body.classList.add('hell');
+        offer();
+        return;
+      }
+      revealTimer = setTimeout(() => {
+        $('fracture').hidden = false;
+        document.body.classList.add('hell');
+        revealTimer = setTimeout(offer, 860);
+      }, celebrating ? 2420 : 0);
+    }
+
+    function showAchievement() {
+      stageState = 'finished';
+      stopClock();
+      $('game').hidden = true;
+      $('completion').hidden = true;
+      $('achievement').hidden = false;
+      $('achievement-title').focus();
+      launchFireworks();
+    }
+
+    function stopFireworks() {
+      if (fireworksFrame !== null) cancelAnimationFrame(fireworksFrame);
+      fireworksFrame = null;
+      $('fireworks').hidden = true;
+    }
+
+    function launchFireworks() {
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const canvas = $('fireworks');
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const scale = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      canvas.hidden = false;
+      const colors = ['#d98517', '#bc3858', '#235dc9', '#22846d'];
+      const bursts = Array.from({length: 6}, (_, index) => ({
+        x: width * (0.15 + Math.random() * 0.7),
+        y: height * (0.17 + Math.random() * 0.43),
+        at: index * 270,
+        sparks: Array.from({length: 23}, (_, spark) => ({
+          angle: spark * Math.PI * 2 / 23 + Math.random() * 0.16,
+          speed: 35 + 115 * Math.random(),
+          color: colors[(index + spark) % colors.length],
+        })),
+      }));
+      const start = performance.now();
+      function animate(now) {
+        const elapsed = now - start;
+        ctx.clearRect(0, 0, width, height);
+        for (const burst of bursts) {
+          const age = (elapsed - burst.at) / 1000;
+          if (age < 0 || age > 1) continue;
+          ctx.globalAlpha = 1 - age;
+          for (const {angle, speed, color} of burst.sparks) {
+            const x = burst.x + Math.cos(angle) * speed * age;
+            const y = burst.y + Math.sin(angle) * speed * age + 55 * age * age;
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, 2.5 - age, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+        if (elapsed < 2350) fireworksFrame = requestAnimationFrame(animate);
+        else stopFireworks();
+      }
+      fireworksFrame = requestAnimationFrame(animate);
+    }
+
+    function advanceIfMatched() {
+      if (positions.some(position => position === null)) return;
+      const {pieces, target} = puzzle();
+      const actual = oddTiles(pieces, positions);
+      if (actual.size !== target.size || [...actual.keys()].some(line => !target.has(line))) {
+        say('mismatch');
+        return;
+      }
+      if (!updateClock()) return;
+      const firstNormalClear = !cleared();
+      passed[current] = true;
+      if (current === hiddenIndex) showAchievement();
+      else if (cleared()) showResults(true, firstNormalClear);
+      else enter(passed.indexOf(false), true, 'advanced');
     }
 
     function place(position) {
+      if (!canMove()) return;
       if (!fits(position)) {
         say('outside');
         return;
@@ -412,23 +769,78 @@
       if (previous && previous[0] === position[0] && previous[1] === position[1]) return;
       history.push({index: selected, previous});
       positions[selected] = position;
+      if (current === hiddenIndex && !targetMemorized) {
+        targetMemorized = true;
+        renderMemory();
+      }
       const nextPiece = positions.indexOf(null);
       if (nextPiece >= 0) selected = nextPiece;
       cursor = null;
       updatePieces();
       drawBoard();
       say('placed');
+      advanceIfMatched();
     }
 
+    function selectPiece(index) {
+      selected = index;
+      cursor = positions[index];
+      updatePieces();
+      drawBoard();
+    }
+
+    function onBoard(event) {
+      const rect = board.getBoundingClientRect();
+      return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    }
+
+    tray.addEventListener('pointerdown', event => {
+      const tile = event.target.closest('button[data-piece]');
+      if (!tile || !event.isPrimary || event.button !== 0 || !canMove()) return;
+      suppressTileClick = false;
+      trayDrag = {index: Number(tile.dataset.piece), pointer: event.pointerId, x: event.clientX, y: event.clientY, moved: false};
+      tile.setPointerCapture(event.pointerId);
+    });
+    tray.addEventListener('pointermove', event => {
+      if (trayDrag?.pointer !== event.pointerId || !canMove()) return;
+      if (!trayDrag.moved) {
+        if (Math.hypot(event.clientX - trayDrag.x, event.clientY - trayDrag.y) < 7) return;
+        trayDrag.moved = true;
+        selectPiece(trayDrag.index);
+      }
+      cursor = onBoard(event) ? gridPosition(board, puzzle().size, event) : null;
+      drawBoard();
+    });
+    tray.addEventListener('pointerup', event => {
+      if (trayDrag?.pointer !== event.pointerId) return;
+      const moved = trayDrag.moved;
+      trayDrag = null;
+      if (!moved) return;
+      suppressTileClick = true;
+      if (!canMove()) return;
+      if (onBoard(event)) place(gridPosition(board, puzzle().size, event));
+      else { cursor = null; drawBoard(); }
+    });
+    tray.addEventListener('pointercancel', () => {
+      trayDrag = null;
+      cursor = null;
+      drawBoard();
+    });
+    tray.addEventListener('click', event => {
+      const tile = event.target.closest('button[data-piece]');
+      if (!tile || (event.detail && suppressTileClick) || !canMove()) return;
+      selectPiece(Number(tile.dataset.piece));
+    });
+
     board.addEventListener('pointerdown', event => {
-      if (!event.isPrimary || event.button !== 0) return;
+      if (!event.isPrimary || event.button !== 0 || !canMove()) return;
       dragging = true;
       board.setPointerCapture(event.pointerId);
       cursor = gridPosition(board, puzzle().size, event);
       drawBoard();
     });
     board.addEventListener('pointermove', event => {
-      if (!event.isPrimary || (!dragging && event.pointerType !== 'mouse')) return;
+      if (stageState !== 'playing' || peekEnds || !event.isPrimary || (!dragging && event.pointerType !== 'mouse')) return;
       cursor = gridPosition(board, puzzle().size, event);
       drawBoard();
     });
@@ -442,11 +854,11 @@
     board.addEventListener('keydown', event => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        place(cursor ?? positions[selected] ?? [0, 0]);
+        if (!event.repeat) place(cursor ?? positions[selected] ?? [0, 0]);
         return;
       }
       const direction = {ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1]}[event.key];
-      if (!direction) return;
+      if (!direction || !canMove()) return;
       event.preventDefault();
       const start = cursor ?? positions[selected] ?? [0, 0];
       const next = start.map((coordinate, axis) => coordinate + direction[axis]);
@@ -454,19 +866,8 @@
       drawBoard();
     });
 
-    $('check').addEventListener('click', () => {
-      if (positions.some(position => position === null)) return say('missing');
-      const solution = oddSegments(puzzle().pieces, puzzle().placements);
-      const actual = oddSegments(puzzle().pieces, positions);
-      if (actual.size !== solution.size || [...actual.keys()].some(line => !solution.has(line))) return say('mismatch');
-      passed[current] = true;
-      if (cleared()) showResults();
-      else {
-        say('solved');
-        renderProgress();
-      }
-    });
     $('undo').addEventListener('click', () => {
+      if (!canMove() || !history.length) return;
       const {index, previous} = history.pop();
       positions[index] = previous;
       selected = index;
@@ -475,15 +876,46 @@
       drawBoard();
       say('undone');
     });
-    $('clear').addEventListener('click', () => { enter(current, false); say('cleared'); });
-    $('next').addEventListener('click', () => enter(current + 1));
+    $('clear').addEventListener('click', () => {
+      if (!canMove()) return;
+      positions = puzzle().pieces.map(() => null);
+      history = [];
+      selected = 0;
+      cursor = null;
+      updatePieces();
+      drawBoard();
+      say('cleared');
+    });
     $('back-results').addEventListener('click', () => showResults());
-    $('restart').addEventListener('click', () => { passed = puzzles.map(() => false); enter(0); });
+    $('retry').addEventListener('click', () => enter(current));
+    $('peek').addEventListener('click', () => {
+      if (!canMove()) return;
+      peekEnds = performance.now() + 10000;
+      renderMemory();
+      updatePieces();
+      say('peeking');
+    });
+    $('hidden-accept').addEventListener('click', () => enter(hiddenIndex));
+    $('hidden-decline').addEventListener('click', () => {
+      hiddenOffer = 'declined';
+      $('hidden-offer').hidden = true;
+      document.body.classList.remove('hell');
+      $('completion-title').focus();
+    });
+    function restart() {
+      hiddenOffer = 'waiting';
+      passed = durations.map(() => false);
+      enter(0);
+    }
+    $('restart').addEventListener('click', restart);
+    $('achievement-restart').addEventListener('click', restart);
+    document.addEventListener('visibilitychange', updateClock);
+    window.addEventListener('pageshow', event => { if (event.persisted) restart(); });
 
     function displayLanguage() {
       document.documentElement.lang = t('zh-CN', 'en');
       document.title = t('层叠消融', 'Layer Overlay Puzzle');
-      meta.content = t(chineseDescription, 'Slide pieces to match a target using odd and even overlaps.');
+      meta.content = t(chineseDescription, 'Match the target using odd and even overlaps across five timed, randomly generated puzzles.');
       for (const [element, zh] of staticCopy) element.textContent = t(zh, element.dataset.en);
       for (const [element, zh] of staticLabels) element.setAttribute('aria-label', t(zh, element.dataset.enLabel));
       $('language').textContent = t('EN', '中文');
@@ -495,7 +927,7 @@
       try { localStorage.setItem('mybian-language', lang); } catch {}
       displayLanguage();
       if (!$('completion').hidden) showResults(false);
-      else {
+      else if (stageState === 'playing') {
         renderProgress();
         updatePieces();
         say(note);
