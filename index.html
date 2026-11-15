@@ -22,7 +22,7 @@
     .top { min-height: 60px; display: flex; justify-content: space-between; align-items: center; gap: .8rem; border-bottom: 1px solid #ddd; }
     .top strong { font-size: .92rem; }
     .top nav { display: flex; gap: .75rem; align-items: center; font-size: .9rem; }
-    .language { min-height: 34px; padding: .18rem .58rem; }
+    .language { min-height: 34px; padding: .18rem .4rem; border: 1px solid #ccc; border-radius: .48rem; color: #000; background: #fff; font: inherit; }
     .intro { margin: 1.65rem 0 1.3rem; }
     h1 { font-size: clamp(2.15rem, 5.2vw + 2px, 3.3rem); line-height: 1.13; }
     .intro p { max-width: 46rem; margin-top: .55rem; }
@@ -77,8 +77,8 @@
     .hell::before { opacity: 1; }
     .hell .panel, .hell .hidden-offer, .hell .board-tools { background: #241310; border-color: #95634f; }
     .hell .top, .hell .footer, .hell .results li { border-color: #754736; }
-    .hell button, .hell .stat { background: #36201a; border-color: #95634f; color: #fff1e8; }
-    .hell button:hover, .hell .pieces button[aria-pressed="true"] { background: #593026; border-color: #ffc4a1; color: #fff1e8; }
+    .hell :is(button, .language), .hell .stat { background: #36201a; border-color: #95634f; color: #fff1e8; }
+    .hell :is(button, .language):hover, .hell .pieces button[aria-pressed="true"] { background: #593026; border-color: #ffc4a1; color: #fff1e8; }
     .hell :focus-visible { outline-color: #ffc4a1; }
     .hell a[href] { color: #acd5fb; }
     .hell .board { background: radial-gradient(ellipse at center, #4c2721, #241211); border-color: #8b5041; }
@@ -131,6 +131,8 @@
       .panel { padding: .48rem; }
     }
     @media (max-width: 460px) {
+      .top { flex-wrap: wrap; column-gap: .45rem; row-gap: .3rem; padding-block: .45rem; }
+      .top nav { flex-wrap: wrap; gap: .4rem; }
       .boards { grid-template-columns: minmax(0, 1fr); }
       .target-board { width: min(100%, 164px); }
     }
@@ -141,7 +143,11 @@
     <strong data-en="Spatial puzzles">空间拼图</strong>
     <nav aria-label="站点操作" data-en-label="Site controls">
       <a href="https://mybian.cn/funzone" data-en="← Fun Zone">← 返回互动区</a>
-      <button id="language" class="language" type="button" aria-label="Switch to English">EN</button>
+      <select id="language" class="language" aria-label="语言" disabled>
+        <option value="en" lang="en">English</option>
+        <option value="zh" lang="zh-CN" selected>简体中文</option>
+        <option value="zh-Hant" lang="zh-Hant">繁體中文</option>
+      </select>
     </nav>
   </header>
   <main class="wrap">
@@ -246,6 +252,8 @@
   <footer class="wrap footer">
     <span><span data-en="Last updated">更新于</span> <time datetime="2026-11-16">2026-11-16</time></span>
   </footer>
+  <script src="./vendor/opencc-cn2t.js"></script>
+  <script src="./locale.js"></script>
   <script>
     'use strict';
 
@@ -410,9 +418,10 @@
       undone: ['已撤销上一步。', 'Last placement undone.'],
       cleared: ['棋盘已清空。', 'Board cleared.'],
     };
-    let lang = 'zh';
-    try { if (localStorage.getItem('mybian-language') === 'en') lang = 'en'; } catch {}
-    const t = (zh, en) => lang === 'en' ? en : zh;
+    const languageSelect = $('language');
+    const locale = window.siteLocale;
+    let lang = locale.read('zh');
+    const t = (zh, en) => locale.text(lang, zh, en);
     const staticCopy = Array.from(document.querySelectorAll('[data-en]'), element => [element, element.textContent]);
     const meta = document.querySelector('meta[name=description]');
     const chineseDescription = meta.content;
@@ -1106,18 +1115,16 @@
     window.addEventListener('pageshow', event => { if (event.persisted) restart(); });
 
     function displayLanguage() {
-      document.documentElement.lang = t('zh-CN', 'en');
+      locale.apply(languageSelect, lang);
       document.title = t('层叠消融', 'Layer Overlay Puzzle');
       meta.content = t(chineseDescription, 'Match the target using odd and even overlaps across five timed, randomly generated puzzles.');
       for (const [element, zh] of staticCopy) element.textContent = t(zh, element.dataset.en);
       for (const [element, zh] of staticLabels) element.setAttribute('aria-label', t(zh, element.dataset.enLabel));
-      $('language').textContent = t('EN', '中文');
-      $('language').setAttribute('aria-label', t('Switch to English', '切换到中文'));
     }
 
-    $('language').addEventListener('click', () => {
-      lang = t('en', 'zh');
-      try { localStorage.setItem('mybian-language', lang); } catch {}
+    languageSelect.addEventListener('change', () => {
+      lang = languageSelect.value;
+      locale.save(lang);
       displayLanguage();
       if (!$('completion').hidden) showResults(false);
       else if (stageState === 'playing') {
@@ -1130,6 +1137,7 @@
     });
 
     displayLanguage();
+    languageSelect.disabled = false;
     enter(0, false);
   </script>
 </body>

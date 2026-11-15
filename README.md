@@ -4,7 +4,7 @@
 
 ## 运行和操作
 
-直接用浏览器打开 index.html。玩法、关卡和界面在同一个文件内，支持离线运行。页面右上角可切换中英文。
+克隆或下载整个仓库，保留文件夹结构，再用浏览器打开 `index.html`。游戏可离线运行。页面右上角可切换简体中文、繁體中文和 English。
 
 可将图块直接拖到棋盘上，也可选中图块后点按锚点的位置。键盘用户可聚焦棋盘，用方向键移动锚点，按回车放置。每个图块使用一次，保持原方向。拼出目标后，点击「提交答案」。
 
@@ -18,7 +18,7 @@
 
 ## Play in English
 
-Open index.html in a browser and select EN. Drag the filled pieces into position, or select a piece and tap its anchor point. Regions with even coverage disappear. Regions with odd coverage remain. Choose Submit answer once your board matches the target.
+Clone or download the repository, keep its folder structure, and open `index.html` in a browser. The game runs offline. Use the language menu to choose English, Simplified Chinese, or Traditional Chinese. Drag the filled pieces into position, or select a piece and tap its anchor point. Regions with even coverage disappear. Regions with odd coverage remain. Choose Submit answer once your board matches the target.
 
 The five levels have 10, 9, 8, 7, and 6 minutes, respectively. Each entry or retry generates a new puzzle. A correct submission earns 10 points plus one per full minute left, minus one per wrong or incomplete submission. A score of at least 6 advances you immediately. Each level keeps its best score.
 
