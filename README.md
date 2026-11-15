@@ -8,7 +8,7 @@
 
 可将图块直接拖到棋盘上，也可选中图块后点按锚点的位置。键盘用户可聚焦棋盘，用方向键移动锚点，按回车放置。每个图块使用一次，保持原方向。拼出目标后会自动进入下一关。
 
-前五关的时间分别为 10、9、8、7、5 分钟，得分分别为 1、1、2、3、3 分。每次进入或重试一关都会生成新题。超时可重试，已获得的分数保留。重复通过同一关只计一次分。
+前五关的时间分别为 10、9、8、7、6 分钟，得分分别为 1、1、2、3、3 分。每次进入或重试一关都会生成新题。超时可重试，已获得的分数保留。重复通过同一关只计一次分。
 
 通关五关后可选择进入五分钟的隐藏关。开始作答后，目标图形隐藏。每次复看会让棋盘锁定 10 秒，倒计时仍然继续。通过隐藏关可获得「消融之王」称号。
 
@@ -20,4 +20,4 @@
 
 Open index.html in a browser and select EN. Drag the filled pieces into position, or select a piece and tap its anchor point. Regions with even coverage disappear. Regions with odd coverage remain. A match advances immediately.
 
-The five levels have 10, 9, 8, 7, and 5 minutes, respectively. Each entry or retry generates a new puzzle. Clear all five levels for 10 points and the option to try a five-minute hidden level. Its target hides after the first placement. Viewing it again locks the board for ten seconds while the clock continues. Solve it to earn the Master of Overlays title.
+The five levels have 10, 9, 8, 7, and 6 minutes, respectively. Each entry or retry generates a new puzzle. Clear all five levels for 10 points and the option to try a five-minute hidden level. Its target hides after the first placement. Viewing it again locks the board for ten seconds while the clock continues. Solve it to earn the Master of Overlays title.
