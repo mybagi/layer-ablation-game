@@ -397,6 +397,7 @@
     let peekEnds = 0;
     let trayDrag = null;
     let suppressTileClick = false;
+    let placementFocus = null;
     let positions = [];
     let history = [];
     let selected = 0;
@@ -794,6 +795,23 @@
       return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
     }
 
+    function placeFromPointer(event) {
+      const before = puzzle();
+      place(gridPosition(board, before.size, event));
+      // A touch release may synthesize a click after advancement moves the page.
+      if (puzzle() !== before || stageState !== 'playing') placementFocus = document.activeElement;
+    }
+
+    document.addEventListener('pointerdown', () => { placementFocus = null; }, true);
+    document.addEventListener('click', event => {
+      if (!placementFocus || event.detail === 0) return;
+      const focus = placementFocus;
+      placementFocus = null;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      if (document.activeElement !== focus) focus.focus({preventScroll: true});
+    }, true);
+
     tray.addEventListener('pointerdown', event => {
       const tile = event.target.closest('button[data-piece]');
       if (!tile || !event.isPrimary || event.button !== 0 || !canMove()) return;
@@ -818,7 +836,7 @@
       if (!moved) return;
       suppressTileClick = true;
       if (!canMove()) return;
-      if (onBoard(event)) place(gridPosition(board, puzzle().size, event));
+      if (onBoard(event)) placeFromPointer(event);
       else { cursor = null; drawBoard(); }
     });
     tray.addEventListener('pointercancel', () => {
@@ -847,7 +865,7 @@
     board.addEventListener('pointerup', event => {
       if (!dragging || !event.isPrimary) return;
       dragging = false;
-      place(gridPosition(board, puzzle().size, event));
+      placeFromPointer(event);
     });
     board.addEventListener('pointerleave', () => { if (!dragging) { cursor = null; drawBoard(); } });
     board.addEventListener('pointercancel', () => { dragging = false; cursor = null; drawBoard(); });
