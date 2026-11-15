@@ -4,587 +4,505 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="五关神经网络层消融练习。比较模拟准确率和计算量，在约束下找到合适的层组合。">
+  <meta name="description" content="按照偶数层相消、奇数层保留的规则，用基础图形拼出目标轮廓。">
   <title>层叠消融</title>
   <style>
-    :root {
-      color-scheme: light;
-      --page: #fff;
-      --surface: #f7f7f7;
-      --active: #e9e9e9;
-      --line: #ccc;
-      --ink: #000;
-      --link: #1858a1;
-      font: 16px/1.55 Inter, system-ui, "Microsoft YaHei", sans-serif;
-    }
     * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-width: 0;
-      background: var(--page);
-      color: var(--ink);
-    }
     [hidden] { display: none !important; }
-    a { color: var(--link); text-underline-offset: .22em; }
-    button, input { font: inherit; }
-    button {
-      min-height: 44px;
-      border: 1px solid var(--line);
-      border-radius: .55rem;
-      padding: .55rem .85rem;
-      background: var(--surface);
-      color: var(--ink);
-      cursor: pointer;
-    }
-    button:hover:not(:disabled) { border-color: var(--ink); }
-    button:disabled { opacity: .47; cursor: default; }
-    button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible {
-      outline: 2px solid currentColor;
-      outline-offset: 3px;
-    }
-    .wrap { width: min(calc(100% - 2rem), 1070px); margin-inline: auto; }
-    .site-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: .7rem;
-      min-height: 4.1rem;
-      border-bottom: 1px solid var(--line);
-    }
-    .wordmark { font: 700 .9rem/1.2 "IBM Plex Mono", ui-monospace, monospace; }
-    .site-header a { font-size: .9rem; }
-    .intro { margin: 2.1rem 0 1.25rem; }
+    :root { color: #000; background: #fff; font: 16px/1.5 Inter, system-ui, "Microsoft YaHei", sans-serif; }
+    body { margin: 0; }
+    a[href] { color: #1858a1; text-underline-offset: .2em; }
+    button { font: inherit; color: inherit; min-height: 44px; padding: .42rem .72rem; border: 1px solid #ccc; border-radius: .48rem; background: #fff; cursor: pointer; }
+    button:where(:not(:disabled)):hover { border-color: #111; }
+    button:disabled { opacity: .5; cursor: default; }
+    :focus-visible { outline: 2px solid #111; outline-offset: 3px; }
     h1, h2, h3, p { margin: 0; }
-    h1 { font-size: clamp(2.2rem, 6vw, 3.65rem); line-height: 1.08; letter-spacing: -.035em; }
-    h2 { font-size: clamp(1.43rem, 4vw, 2rem); line-height: 1.28; }
-    h3 { font-size: 1rem; }
-    .intro p { max-width: 46em; margin-top: .8rem; }
-    .level-nav { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; margin: 0 0 1rem; }
-    .level-tab { padding-inline: .35rem; font-size: .87rem; }
-    .level-tab[aria-current="step"] { background: var(--active); border-color: var(--ink); font-weight: 700; }
-    .stage-header { display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin: .1rem 0 .95rem; }
-    .stage-header p { margin-top: .35rem; }
-    .score { flex: none; font-weight: 700; padding: .35rem .65rem; border: 1px solid var(--line); border-radius: .5rem; font-variant-numeric: tabular-nums; font-size: .9rem; }
-    .lab { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .94fr); gap: 1rem; align-items: start; }
-    .panel { min-width: 0; border: 1px solid var(--line); background: var(--page); padding: 1rem; border-radius: .85rem; }
-    .panel-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .3rem .6rem; margin-bottom: .75rem; }
-    .panel-heading span, .muted { font-size: .82rem; }
-    .layers { display: grid; gap: .42rem; border: 0; padding: 0; margin: 0; min-width: 0; }
-    .layer {
-      display: grid;
-      grid-template-columns: 2rem minmax(0, 1fr) auto auto;
-      align-items: center;
-      gap: .45rem;
-      background: var(--surface);
-      border: 1px solid var(--line);
-      padding: .38rem .55rem;
-      border-radius: .5rem;
-      min-height: 46px;
-      cursor: pointer;
+    .wrap { width: min(960px, calc(100% - 2rem)); margin-inline: auto; }
+    .top { min-height: 60px; display: flex; justify-content: space-between; align-items: center; gap: .8rem; border-bottom: 1px solid #ddd; }
+    .top strong { font-size: .92rem; }
+    .top nav { display: flex; gap: .75rem; align-items: center; font-size: .9rem; }
+    .language { min-height: 34px; padding: .18rem .58rem; }
+    .intro { margin: 1.65rem 0 1.3rem; }
+    h1 { font-size: clamp(2.15rem, 5.2vw, 3.3rem); line-height: 1.13; }
+    .intro p { max-width: 46rem; margin-top: .55rem; }
+    .levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .42rem; }
+    .levels button { padding: .4rem .18rem; font-size: .88rem; }
+    .levels button[aria-current="step"], .pieces button[aria-pressed="true"] { background: #eee; border-color: #000; font-weight: 700; }
+    .stage { display: flex; justify-content: space-between; align-items: center; gap: .65rem; margin: .95rem 0 .65rem; }
+    .stage h2 { font-size: clamp(1.25rem, 4.5vw, 1.67rem); }
+    .score { flex: none; font-weight: 700; padding: .33rem .65rem; border: 1px solid #c6c6c6; border-radius: .48rem; font-variant-numeric: tabular-nums; }
+    .boards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+    .panel { min-width: 0; padding: .7rem; border: 1px solid #ddd; border-radius: .7rem; }
+    .panel h3 { font-size: 1rem; }
+    .board { display: block; width: 100%; aspect-ratio: 1; margin: .4rem auto 0; border-radius: .45rem; background: #f7f7f7; }
+    .play-board { touch-action: none; cursor: crosshair; }
+    .piece-guide { margin: .85rem 0 .42rem; font-size: .91rem; }
+    .pieces { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .4rem; }
+    .pieces button { display: grid; justify-items: center; min-width: 0; gap: .13rem; padding: .24rem .2rem .3rem; font-size: .78rem; touch-action: manipulation; }
+    .pieces canvas { width: min(100%, 72px); aspect-ratio: 1; display: block; }
+    .actions { margin-top: .8rem; display: flex; flex-wrap: wrap; gap: .4rem; }
+    .primary { border-color: #111; background: #eee; font-weight: 700; }
+    .primary:not(:disabled):hover { background: #e3e3e3; }
+    .feedback { min-height: 1.5em; margin-top: .55rem; font-size: .92rem; }
+    .board-tools { margin-top: .7rem; }
+    .board-tools summary { cursor: pointer; font-weight: 700; }
+    .board-tools p { margin: .4rem 0 0; font-size: .92rem; max-width: 48rem; }
+    .completion { margin-top: 1.25rem; }
+    .completion h2 { font-size: clamp(1.4rem, 5vw, 2rem); }
+    .completion output { display: block; font-size: 2.25rem; font-weight: 700; margin: .4rem 0; }
+    .results { margin: .5rem 0 .8rem; padding: 0; list-style: none; }
+    .results li { display: flex; align-items: center; justify-content: space-between; gap: .55rem; padding: .36rem 0; border-top: 1px solid #ddd; }
+    .footer { margin-top: 1.2rem; padding: .85rem 0 1.4rem; font-size: .83rem; border-top: 1px solid #ddd; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; }
+    @media (max-width: 570px) {
+      .wrap { width: calc(100% - 1.3rem); }
+      .intro { margin: 1.05rem 0 .8rem; }
+      .boards { gap: .48rem; }
+      .panel { padding: .48rem; }
     }
-    .layer:has(input:checked) .layer-title { font-weight: 700; }
-    .index { font: 500 .77rem/1 "IBM Plex Mono", ui-monospace, monospace; }
-    .layer-title { font-size: .87rem; overflow-wrap: anywhere; }
-    .layer-cost { font-variant-numeric: tabular-nums; font-size: .78rem; white-space: nowrap; }
-    .layer input { margin: .15rem; width: 1.15rem; height: 1.15rem; accent-color: var(--ink); cursor: pointer; }
-    .layer-note, .checklist { font-size: .87rem; }
-    .layer-note { margin-top: .75rem; }
-    .checklist { padding-left: 1.2rem; margin: 0 0 .9rem; }
-    .checklist li + li { margin-top: .25rem; }
-    table { width: 100%; border-collapse: collapse; font-size: .83rem; font-variant-numeric: tabular-nums; }
-    th, td { padding: .4rem .18rem; border-bottom: 1px solid var(--line); text-align: right; }
-    th:first-child { text-align: left; }
-    thead th { font-weight: 500; }
-    tbody th { font-weight: 600; }
-    td { white-space: nowrap; }
-    .actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .95rem; }
-    .primary { background: var(--active); border-color: var(--ink); font-weight: 700; }
-    .primary:hover:not(:disabled) { background: #ddd; }
-    .status { margin-top: .85rem; padding: .68rem .75rem; border: 1px solid var(--line); border-radius: .5rem; }
-    .status p { font-size: .86rem; }
-    .status.pass { border-color: var(--ink); }
-    .status.fail { border-style: dashed; }
-    .status strong { display: block; margin-bottom: .15rem; }
-    details { margin: 1rem 0 0; font-size: .9rem; }
-    summary { color: var(--ink); cursor: pointer; width: fit-content; }
-    details p { margin-top: .65rem; }
-    .completion { margin: 1.4rem auto; max-width: 690px; padding: clamp(1rem, 4vw, 2rem); }
-    .completion p { margin-top: .35rem; }
-    .completion output { display: block; color: var(--ink); font-size: 2.3rem; font-weight: 750; font-variant-numeric: tabular-nums; margin: .3rem 0 .8rem; }
-    .summary-list { margin: .7rem 0 0; padding: 0; list-style: none; }
-    .summary-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .52rem; padding: .5rem 0; border-top: 1px solid var(--line); }
-    .summary-list span { font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .7rem; border-top: 1px solid var(--line); margin-top: 1.6rem; padding: .95rem 0 1.55rem; font-size: .84rem; }
-    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
-    @media (max-width: 740px) {
-      .intro { margin-top: 1.4rem; }
-      .lab { grid-template-columns: minmax(0, 1fr); }
-      .stage-header { gap: .6rem; }
+    @media (max-width: 460px) {
+      .boards { grid-template-columns: minmax(0, 1fr); }
+      .target-board { width: min(100%, 164px); }
     }
-    @media (max-width: 400px) {
-      .wrap { width: calc(100% - 1.2rem); }
-      .panel { padding: .75rem; }
-      .level-tab { font-size: .75rem; }
-      .score { font-size: .78rem; }
-      .layer { grid-template-columns: 1.5rem minmax(0, 1fr) auto auto; }
-    }
-    .game-nav { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .35rem .75rem; }
-  .game-nav .language { min-height: 36px; padding: .2rem .52rem; font-size: .82rem; }
-</style>
+  </style>
 </head>
 <body>
-  <header class="site-header wrap">
-    <span class="wordmark" aria-hidden="true">ABLATION LAB</span>
-    <div class="game-nav"><a href="https://mybian.cn/funzone"><span data-en="Fun Zone">返回趣味研究</span></a><button class="language" type="button" aria-label="Switch to English">EN</button></div>
+  <header class="wrap top">
+    <strong data-en="Spatial puzzles">空间拼图</strong>
+    <nav aria-label="站点操作" data-en-label="Site controls">
+      <a href="https://mybian.cn/funzone" data-en="← Fun Zone">← 返回互动区</a>
+      <button id="language" class="language" type="button" aria-label="Switch to English">EN</button>
+    </nav>
   </header>
   <main class="wrap">
-    <section class="intro" aria-labelledby="game-title">
-      <h1 id="game-title"><span data-en="Layer ablation">层叠消融</span></h1>
-      <p><span data-en="Switch off one or more layers and compare with the full network. Preserve task accuracy within a compute budget. All metrics come from a teaching simulation.">关闭神经网络中的一层或多层，与全开启的基线比较。在计算预算内，尽量保住任务准确率。所有指标由教学模型模拟。</span></p>
+    <section class="intro">
+      <h1 data-en="Layer Overlay Puzzle">层叠消融</h1>
+      <p data-en="Slide the pieces to match the target. A line covered an even number of times disappears. An odd number of layers leaves it visible.">平移图块，拼出目标轮廓。同一线段叠偶数次会消失，叠奇数次会保留。</p>
     </section>
-    <section id="game" aria-labelledby="level-title">
-      <nav id="level-nav" class="level-nav" aria-label="选择关卡" data-en-label="Choose a level"></nav>
-      <div class="stage-header">
-        <div>
-          <h2 id="level-title" tabindex="-1"></h2>
-          <p id="level-description"></p>
-        </div>
+    <section id="game" aria-labelledby="stage-title">
+      <nav id="levels" class="levels" aria-label="选择关卡" data-en-label="Choose a level"></nav>
+      <div class="stage">
+        <h2 id="stage-title" tabindex="-1"></h2>
         <output id="score" class="score" aria-label="累计分数" data-en-label="Total score"></output>
       </div>
-      <div class="lab">
-        <div class="panel">
-          <div class="panel-heading">
-            <h3><span data-en="Active layers">启用层</span></h3>
-            <span id="activation-count"></span>
-          </div>
-          <fieldset id="layers" class="layers"><legend class="sr-only"><span data-en="Check the layers to keep active">勾选保持开启的网络层</span></legend></fieldset>
-          <p id="layer-note" class="layer-note"></p>
-        </div>
-        <div class="panel">
-          <div class="panel-heading"><h3><span data-en="Requirements">通关条件</span></h3><span><span data-en="Simulation">模拟实验</span></span></div>
-          <ul id="requirements" class="checklist"></ul>
-          <table>
-            <caption class="sr-only"><span data-en="Simulated metrics for the baseline and selected ablation">全层基线和所选消融配置的模拟指标</span></caption>
-            <thead><tr><th scope="col"><span data-en="Metric">指标</span></th><th scope="col"><span data-en="Baseline">基线</span></th><th scope="col"><span data-en="Trial">本次</span></th><th scope="col"><span data-en="Change">变化</span></th></tr></thead>
-            <tbody id="metrics"></tbody>
-          </table>
-          <div id="feedback" class="status" role="status" aria-live="polite" hidden></div>
-          <div class="actions">
-            <button id="run" class="primary" type="button"><span data-en="Run ablation">运行消融实验</span></button>
-            <button id="restore" type="button"><span data-en="Restore all layers">恢复全层</span></button>
-            <button id="next" type="button" hidden><span data-en="Next level">进入下一关</span></button>
-            <button id="return-summary" type="button" hidden><span data-en="Back to results">返回通关结果</span></button>
-          </div>
-        </div>
+      <div class="boards">
+        <section class="panel">
+          <h3 data-en="Target">目标图形</h3>
+          <canvas id="target" class="board target-board" width="512" height="512" role="img" aria-label="本关目标线条" data-en-label="Target lines for this level"></canvas>
+        </section>
+        <section class="panel">
+          <h3 data-en="Your board">拼图区</h3>
+          <canvas id="board" class="board play-board" width="512" height="512" tabindex="0"
+            aria-label="拼图棋盘。方向键移动锚点，回车放置选中图块。" data-en-label="Puzzle board. Move the anchor with arrow keys and press Enter to place the selected piece."></canvas>
+        </section>
       </div>
-      <details>
-        <summary><span data-en="How do I read the results?">怎么看消融结果？</span></summary>
-        <p><span data-en="The baseline keeps every layer active. Within a level, the evaluation data, parameters, and scoring rules are fixed. Only the active layers change. An ablation of several layers measures their combined effect.">基线保留全部网络层。同一关的评估数据、模型参数和计算规则固定，实验只改变哪些层参与计算。同时关闭多层时，差值反映这组操作的共同影响。</span></p>
-        <p><span data-en="Simulated accuracy adds a fixed starting value, the contributions of active layers, and interactions between active pairs. Compute cost sums fixed overhead and the cost of active layers. The score rewards accuracy retained and compute saved, and only the best score for each level counts.">模拟准确率由固定起点、已开启层的贡献和同时开启的层对贡献相加得到。计算量是固定开销与已开启层的开销之和。分数按准确率保留程度和节省的计算量计算，同一关只保留最高分。</span></p>
+      <p class="piece-guide" data-en="Select a piece, then tap or drag on the board to position its anchor dot. Select it again to move it.">选中图块后，在棋盘上点按或拖动定位锚点。再次选中该图块可调整位置。</p>
+      <div id="pieces" class="pieces" role="group" aria-label="基础图块" data-en-label="Puzzle pieces"></div>
+      <div class="actions">
+        <button id="check" class="primary" type="button" data-en="Check puzzle">检查图案</button>
+        <button id="undo" type="button" data-en="Undo">撤销</button>
+        <button id="clear" type="button" data-en="Clear board">清空棋盘</button>
+        <button id="next" type="button" hidden data-en="Next level →">下一关 →</button>
+        <button id="back-results" type="button" hidden data-en="Back to results">返回通关结果</button>
+      </div>
+      <p id="feedback" class="feedback" role="status" aria-live="polite"></p>
+      <details class="board-tools">
+        <summary data-en="Rules and scoring">玩法与计分</summary>
+        <p data-en="Use each piece once. Keep each piece in its original orientation. The dotted preview shows the selected piece before placement. Click Check puzzle when your visible lines match the target. Each level earns points once.">每块图形使用一次，可以平移。虚线预览显示选中图块将放到哪里。可见的线条与目标完全相同时提交。每关的分数只计一次。</p>
       </details>
-      <div class="actions"><button id="restart" type="button"><span data-en="Restart all five levels">重新开始五关</span></button></div>
     </section>
     <section id="completion" class="completion panel" aria-labelledby="completion-title" hidden>
-      <h2 id="completion-title" tabindex="-1"><span data-en="Congratulations! All five levels cleared.">恭喜，五关全部通过！</span></h2>
-      <p><span data-en="You found a configuration that meets the accuracy and compute limits in every scenario.">你在每个场景中都找到了满足准确率与计算约束的层组合。</span></p>
-      <output id="final-score" aria-label="通关累计分数" data-en-label="Final total score"></output>
-      <ul id="summary-list" class="summary-list"></ul>
-      <div class="actions"><button id="restart-completion" class="primary" type="button"><span data-en="Restart all five levels">重新开始五关</span></button></div>
+      <h2 id="completion-title" tabindex="-1" data-en="Congratulations! All five levels cleared.">恭喜，五关全部通过！</h2>
+      <output id="final-score" aria-label="最终得分" data-en-label="Final score"></output>
+      <ul id="results" class="results"></ul>
+      <button id="restart" type="button" class="primary" data-en="Play again">重新挑战</button>
     </section>
-    <noscript><p class="panel"><span data-en="Enable JavaScript to play this game locally.">启用 JavaScript 即可在本地运行游戏。</span></p></noscript>
+    <noscript><p data-en="Enable JavaScript to play.">请启用 JavaScript 开始游戏。</p></noscript>
   </main>
-  <footer class="footer wrap"><span><span data-en="Teaching simulation">教学模拟</span></span><span><span data-en="Last updated">更新于</span> <time datetime="2026-11-15">2026-11-15</time></span></footer>
+  <footer class="wrap footer">
+    <a href="https://v.jstv.com/a/20180105/1515163436538.shtml" data-en="Jiangsu TV archive">江苏卫视节目档案</a>
+    <span><span data-en="Last updated">更新于</span> <time datetime="2026-11-15">2026-11-15</time></span>
+  </footer>
   <script>
     'use strict';
 
-  let gameLanguage = 'zh';
-  try {
-    if (localStorage.getItem('mybian-language') === 'en') gameLanguage = 'en';
-  } catch {}
-  const t = (zh, en) => gameLanguage === 'en' ? en : zh;
-  const words = {
-    "层叠消融": "Layer ablation",
-    "先关一层": "Remove one layer",
-    "只改变一层，找出关闭后几乎不影响分类准确率的层。": "Switch off one layer and find the one with the smallest effect on classification accuracy.",
-    "分类准确率": "Classification accuracy",
-    "标注准确率": "Tagging accuracy",
-    "输入投影": "Input projection",
-    "特征聚合": "Feature aggregation",
-    "末端校准": "Final calibration",
-    "压缩计算量": "Cut compute cost",
-    "单独关一层不一定能省够计算量。比较几种层组合的代价。": "Switching off one layer may save too little compute. Compare the cost of different combinations.",
-    "输入编码": "Input encoding",
-    "注意力混合": "Attention mixing",
-    "特征投影": "Feature projection",
-    "输出平滑": "Output smoothing",
-    "输出校准": "Output calibration",
-    "保护两个任务": "Protect both tasks",
-    "一层对分类的影响很小，也可能对序列标注很重要。两项指标都要过线。": "A layer that does little for classification may still matter for sequence tagging. Meet both accuracy limits.",
-    "共享编码": "Shared encoder",
-    "全局池化": "Global pooling",
-    "位置混合": "Position mixing",
-    "通道投影": "Channel projection",
-    "辅助门控": "Auxiliary gating",
-    "识别层间协同": "Find layer interactions",
-    "全局池化与上下文门控同时开启时有协同贡献。先观察单层差值，再试组合。": "Global pooling and context gating contribute more together. Compare single-layer changes, then try combinations.",
-    "上下文门控": "Context gating",
-    "标注特征": "Tagging features",
-    "辅助投影": "Auxiliary projection",
-    "部署前的折中": "Balance deployment trade-offs",
-    "同时考虑协同、冗余和更紧的预算。找到可行方案后，还可以比较分数。": "Handle interactions, redundancy, and a tighter budget. Compare scores after finding a feasible configuration.",
-    "标注适配": "Tagging adapter",
-    "冗余校准": "Redundant calibration",
-    "计算量": "Compute cost",
-    "重玩": "Replay",
-    "本次未达成条件": "Requirements not met"
-  };
-  const label = zh => t(zh, words[zh] ?? zh);
-  const staticText = Array.from(document.querySelectorAll('[data-en]'), element => [element, element.textContent]);
-  const description = document.querySelector('meta[name=description]');
-  const chineseDescription = description.content;
-  const staticLabels = Array.from(document.querySelectorAll('[data-en-label]'), element => [element, element.getAttribute('aria-label')]);
-  const languageButton = document.querySelector('.game-nav .language');
-
-  function renderLanguage() {
-    document.documentElement.lang = t('zh-CN', 'en');
-    description.content = t(chineseDescription, "Five neural network ablation challenges on accuracy and compute cost.");
-    document.title = label('层叠消融');
-    for (const [element, zh] of staticText) element.textContent = t(zh, element.dataset.en);
-    for (const [element, zh] of staticLabels) element.setAttribute('aria-label', t(zh, element.dataset.enLabel));
-    languageButton.textContent = t('EN', '中文');
-    languageButton.setAttribute('aria-label', t('Switch to English', '切换到中文'));
-  }
-
-  function onLanguageChange(redraw) {
-    languageButton.addEventListener('click', () => {
-      gameLanguage = t('en', 'zh');
-      try { localStorage.setItem('mybian-language', gameLanguage); } catch {}
-      renderLanguage();
-      redraw();
-    });
-    renderLanguage();
-  }
-
-
-    // Accuracy is stored in tenths of one percentage point.
-    const levels = [
+    const puzzles = [
       {
-        title: '先关一层',
-        description: '只改变一层，找出关闭后几乎不影响分类准确率的层。',
-        tasks: ['分类准确率'], floor: [714], fixedCost: 10, minOff: 1, maxOff: 1, lossLimit: [8],
-        layers: [
-          { name: '输入投影', cost: 18, effect: [85] },
-          { name: '特征聚合', cost: 19, effect: [105] },
-          { name: '末端校准', cost: 15, effect: [4] },
+        size: 5,
+        pieces: [
+          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
+          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]]
         ],
+        placements: [[0,1],[2,1]],
       },
       {
-        title: '压缩计算量',
-        description: '单独关一层不一定能省够计算量。比较几种层组合的代价。',
-        tasks: ['分类准确率'], floor: [710], fixedCost: 10, minOff: 1, costLimit: 62, lossLimit: [15],
-        layers: [
-          { name: '输入编码', cost: 20, effect: [92] },
-          { name: '注意力混合', cost: 20, effect: [76] },
-          { name: '特征投影', cost: 14, effect: [5] },
-          { name: '输出平滑', cost: 12, effect: [6] },
-          { name: '输出校准', cost: 10, effect: [9] },
+        size: 6,
+        pieces: [
+          [[0,2,1,1],[1,1,2,0],[2,0,3,1],[3,1,4,2],[3,2,4,2],[2,2,3,2],[1,2,2,2],[0,2,1,2]],
+          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,3,1],[3,1,3,2],[2,2,3,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
+          [[0,0,1,0],[1,0,1,1],[0,1,1,1],[0,0,0,1]]
         ],
+        placements: [[0,1],[1,3],[4,4]],
       },
       {
-        title: '保护两个任务',
-        description: '一层对分类的影响很小，也可能对序列标注很重要。两项指标都要过线。',
-        tasks: ['分类准确率', '标注准确率'], floor: [700, 670], fixedCost: 10, minOff: 1, costLimit: 77, lossLimit: [9, 7],
-        layers: [
-          { name: '共享编码', cost: 20, effect: [86, 76] },
-          { name: '全局池化', cost: 17, effect: [53, 7] },
-          { name: '位置混合', cost: 18, effect: [5, 84] },
-          { name: '通道投影', cost: 13, effect: [3, 3] },
-          { name: '辅助门控', cost: 12, effect: [4, 2] },
+        size: 7,
+        pieces: [
+          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[4,1,5,0],[3,1,4,1],[2,1,3,1],[1,1,2,1],[0,0,1,1]],
+          [[0,0,1,1],[1,1,2,2],[2,2,3,3],[2,3,3,3],[1,3,2,3],[0,3,1,3],[0,2,0,3],[0,1,0,2],[0,0,0,1]],
+          [[0,2,1,1],[1,1,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2]]
         ],
+        placements: [[1,4],[3,1],[1,2]],
       },
       {
-        title: '识别层间协同',
-        description: '全局池化与上下文门控同时开启时有协同贡献。先观察单层差值，再试组合。',
-        tasks: ['分类准确率', '标注准确率'], floor: [710, 690], fixedCost: 10, minOff: 2, costLimit: 73, lossLimit: [11, 10],
-        layers: [
-          { name: '共享编码', cost: 19, effect: [80, 76] },
-          { name: '全局池化', cost: 17, effect: [46, 8] },
-          { name: '上下文门控', cost: 14, effect: [3, 4] },
-          { name: '标注特征', cost: 13, effect: [7, 37] },
-          { name: '辅助投影', cost: 12, effect: [2, 3] },
-          { name: '末端校准', cost: 8, effect: [3, 1] },
+        size: 8,
+        pieces: [
+          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
+          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,2,2,2],[0,2,1,2],[0,1,0,2],[0,0,0,1]],
+          [[0,0,1,1],[1,1,2,2],[2,2,3,3],[2,4,3,3],[1,5,2,4],[0,6,1,5],[0,5,0,6],[0,4,0,5],[0,3,0,4],[0,2,0,3],[0,1,0,2],[0,0,0,1]],
+          [[0,0,1,1],[0,2,1,1],[0,1,0,2],[0,0,0,1]]
         ],
-        interactions: [{ pair: [1, 2], effect: [18, 9] }],
+        placements: [[0,3],[2,3],[4,1],[0,3]],
       },
       {
-        title: '部署前的折中',
-        description: '同时考虑协同、冗余和更紧的预算。找到可行方案后，还可以比较分数。',
-        tasks: ['分类准确率', '标注准确率'], floor: [730, 690], fixedCost: 14, minOff: 2, costLimit: 97, lossLimit: [9, 10],
-        layers: [
-          { name: '共享编码', cost: 20, effect: [64, 62] },
-          { name: '全局池化', cost: 18, effect: [47, 8] },
-          { name: '位置混合', cost: 17, effect: [9, 55] },
-          { name: '上下文门控', cost: 16, effect: [4, 3] },
-          { name: '辅助投影', cost: 14, effect: [5, 4] },
-          { name: '标注适配', cost: 12, effect: [6, 8] },
-          { name: '冗余校准', cost: 9, effect: [-3, 1] },
-          { name: '输出平滑', cost: 8, effect: [2, 2] },
+        size: 9,
+        pieces: [
+          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[5,0,6,0],[5,1,6,0],[4,2,5,1],[3,3,4,2],[2,2,3,3],[1,1,2,2],[0,0,1,1]],
+          [[0,3,1,2],[1,2,2,1],[2,1,3,0],[3,0,4,1],[4,1,5,2],[5,2,6,3],[5,3,6,3],[4,3,5,3],[3,3,4,3],[2,3,3,3],[1,3,2,3],[0,3,1,3]],
+          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[5,0,6,0],[6,0,7,0],[7,0,8,0],[8,0,8,1],[7,1,8,1],[6,1,7,1],[5,1,6,1],[4,1,5,1],[3,1,4,1],[2,1,3,1],[1,1,2,1],[0,1,1,1],[0,0,0,1]],
+          [[0,0,1,0],[1,0,2,0],[2,0,3,0],[3,0,4,0],[4,0,5,0],[5,0,6,0],[6,0,7,0],[7,0,8,0],[8,0,8,1],[7,1,8,1],[6,1,7,1],[5,1,6,1],[4,1,5,1],[3,1,4,1],[2,1,3,1],[1,1,2,1],[0,1,1,1],[0,0,0,1]],
+          [[0,0,1,0],[1,0,2,0],[2,0,2,1],[2,1,2,2],[1,1,2,2],[0,0,1,1]]
         ],
-        interactions: [
-          { pair: [1, 3], effect: [13, 5] },
-          { pair: [2, 5], effect: [4, 12] },
-          { pair: [4, 6], effect: [-7, -2] },
-          { pair: [6, 7], effect: [-2, 0] },
-        ],
+        placements: [[1,1],[1,4],[0,0],[0,7],[2,2]],
       },
+    ];
+    const points = [1, 1, 2, 3, 3];
+    const total = points.reduce((sum, mark) => sum + mark, 0);
+    const captions = [
+      ['两块叠合', 'First overlap'],
+      ['交错拼接', 'Interlocking outlines'],
+      ['斜线交织', 'Diagonal crossing'],
+      ['多层消融', 'Multiple overlaps'],
+      ['终极图阵', 'Final pattern'],
     ];
 
     const $ = id => document.getElementById(id);
-    const fullMask = level => (1 << level.layers.length) - 1;
-    const layerOn = (mask, index) => Boolean(mask & (1 << index));
-    const value = amount => (amount / 10).toFixed(1);
-    const signed = amount => amount > 0 ? `+${amount}` : String(amount);
-
-    function simulate(level, mask) {
-      const accuracy = [...level.floor];
-      let cost = level.fixedCost;
-      let off = 0;
-      level.layers.forEach((layer, index) => {
-        if (layerOn(mask, index)) {
-          cost += layer.cost;
-          layer.effect.forEach((effect, task) => { accuracy[task] += effect; });
-        } else {
-          off += 1;
-        }
-      });
-      for (const { pair, effect } of level.interactions ?? []) {
-        if (pair.every(index => layerOn(mask, index))) {
-          effect.forEach((change, task) => { accuracy[task] += change; });
-        }
-      }
-      return { accuracy, cost, off };
-    }
-
-    function evaluate(level, mask, baseline) {
-      const result = simulate(level, mask);
-      const losses = baseline.accuracy.map((accuracy, task) => accuracy - result.accuracy[task]);
-      const failures = [];
-      if (result.off < level.minOff || result.off > (level.maxOff ?? Infinity)) {
-        failures.push(level.minOff === level.maxOff ? t(`请关闭 ${level.minOff} 层`, `Disable exactly ${level.minOff}`) : t(`至少关闭 ${level.minOff} 层`, `Disable at least ${level.minOff}`));
-      }
-      if (result.cost > (level.costLimit ?? Infinity)) failures.push(t(`计算量需降到 ${level.costLimit} 以内`, `Reduce compute cost to ${level.costLimit} or less`));
-      losses.forEach((loss, task) => {
-        if (loss > level.lossLimit[task]) failures.push(t(`${level.tasks[task]}下降超过 ${value(level.lossLimit[task])} 个百分点`, `${label(level.tasks[task])} dropped by more than ${value(level.lossLimit[task])} pp`));
-      });
-      const meanLossFraction = losses.reduce((sum, loss, task) => sum + Math.max(0, loss) / level.lossLimit[task], 0) / losses.length;
-      const quality = .65 * (1 - meanLossFraction) + .35 * (1 - result.cost / baseline.cost);
-      return { ...result, losses, quality, failures };
-    }
-
-    const baselines = levels.map(level => simulate(level, fullMask(level)));
-    const bestQualities = levels.map((level, index) => {
-      let best = 0;
-      for (let mask = 0; mask <= fullMask(level); mask += 1) {
-        const run = evaluate(level, mask, baselines[index]);
-        if (!run.failures.length) best = Math.max(best, run.quality);
-      }
-      return best;
-    });
+    const board = $('board');
+    const tray = $('pieces');
+    const nav = $('levels');
+    const notes = {
+      start: ['选一块图形，开始拼接。', 'Select a piece to begin.'],
+      placed: ['图块已放置。', 'Piece placed.'],
+      outside: ['图块必须完整放在棋盘内。', 'The whole piece must fit on the board.'],
+      missing: ['请先放上所有图块。', 'Place every piece before checking.'],
+      mismatch: ['可见线条还没有与目标重合，试试移动图块。', 'The visible lines differ from the target. Try moving a piece.'],
+      solved: ['图案匹配，已通关！', 'It matches. Level cleared!'],
+      undone: ['已撤销上一步。', 'Last placement undone.'],
+      cleared: ['棋盘已清空。', 'Board cleared.'],
+    };
+    let lang = 'zh';
+    try { if (localStorage.getItem('mybian-language') === 'en') lang = 'en'; } catch {}
+    const t = (zh, en) => lang === 'en' ? en : zh;
+    const staticCopy = Array.from(document.querySelectorAll('[data-en]'), element => [element, element.textContent]);
+    const meta = document.querySelector('meta[name=description]');
+    const chineseDescription = meta.content;
+    const staticLabels = Array.from(document.querySelectorAll('[data-en-label]'), element => [element, element.getAttribute('aria-label')]);
 
     let current = 0;
-    let mask = fullMask(levels[0]);
-    let lastResult = null;
-    let records = Array(levels.length).fill(null);
-    const scoreTotal = () => records.reduce((sum, record) => sum + (record?.score ?? 0), 0);
-    const complete = () => records.every(Boolean);
+    let passed = puzzles.map(() => false);
+    let positions = [];
+    let history = [];
+    let selected = 0;
+    let cursor = null;
+    let dragging = false;
+    let note = 'start';
 
-    const levelName = index => t(`第 ${index + 1} 关`, `Level ${index + 1}`);
-    const points = amount => t(`${amount} 分`, `${amount} pts`);
+    const puzzle = () => puzzles[current];
+    const cleared = () => passed.every(Boolean);
+    const score = () => points.reduce((sum, value, index) => sum + (passed[index] ? value : 0), 0);
+    const scoreText = () => t(`${score()} / ${total} 分`, `${score()} / ${total} pts`);
+    const levelText = index => t(`第 ${index + 1} 关`, `Level ${index + 1}`);
+    const pieceText = index => t(`图块 ${index + 1}`, `Piece ${index + 1}`);
+    const pieceBounds = piece => [
+      Math.max(...piece.flatMap(([x1, , x2]) => [x1, x2])),
+      Math.max(...piece.flatMap(([, y1, , y2]) => [y1, y2])),
+    ];
+    const translated = (piece, [x, y]) => piece.map(([x1, y1, x2, y2]) => [x1 + x, y1 + y, x2 + x, y2 + y]);
 
-    function navigation() {
-      const firstIncomplete = records.findIndex(record => !record);
-      $('level-nav').replaceChildren(...levels.map((level, index) => {
+    function oddSegments(pieces, locations) {
+      const visible = new Map();
+      pieces.forEach((piece, index) => {
+        if (!locations[index]) return;
+        for (const segment of translated(piece, locations[index])) {
+          const [x1, y1, x2, y2] = segment;
+          const key = (x1 < x2 || (x1 === x2 && y1 < y2) ? segment : [x2, y2, x1, y1]).join(',');
+          if (visible.has(key)) visible.delete(key);
+          else visible.set(key, segment);
+        }
+      });
+      return visible;
+    }
+
+    function gridPosition(canvas, size, pointer) {
+      const rect = canvas.getBoundingClientRect();
+      const scale = (canvas.width - 72) / (size - 1);
+      return [
+        Math.round(((pointer.clientX - rect.left) * canvas.width / rect.width - 36) / scale),
+        Math.round(((pointer.clientY - rect.top) * canvas.height / rect.height - 36) / scale),
+      ];
+    }
+
+    function draw(canvas, lines, size, {grid = false, preview = [], anchor = null} = {}) {
+      const ctx = canvas.getContext('2d');
+      const side = canvas.width;
+      const inset = grid ? 36 : 9;
+      const step = (side - 2 * inset) / Math.max(1, size - 1);
+      ctx.clearRect(0, 0, side, side);
+      if (grid) {
+        ctx.fillStyle = '#b9b9b9';
+        for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+          ctx.beginPath();
+          ctx.arc(inset + x * step, inset + y * step, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      function stroke(segments, color, lineWidth) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.beginPath();
+        for (const [x1, y1, x2, y2] of segments) {
+          ctx.moveTo(inset + x1 * step, inset + y1 * step);
+          ctx.lineTo(inset + x2 * step, inset + y2 * step);
+        }
+        ctx.stroke();
+      }
+      ctx.lineCap = 'round';
+      stroke(lines, '#171717', grid ? 5.6 : 3.5);
+      if (preview.length) {
+        ctx.setLineDash([9, 7]);
+        stroke(preview, '#777', 4);
+        ctx.setLineDash([]);
+      }
+      if (anchor) {
+        const [x, y] = anchor;
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = grid ? 2.5 : 1.6;
+        ctx.beginPath();
+        ctx.arc(inset + x * step, inset + y * step, grid ? 7 : 3.4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function fits([x, y]) {
+      const [right, bottom] = pieceBounds(puzzle().pieces[selected]);
+      return x >= 0 && y >= 0 && x + right < puzzle().size && y + bottom < puzzle().size;
+    }
+
+    function drawBoard() {
+      const {size, pieces} = puzzle();
+      const partial = oddSegments(pieces, positions);
+      const isPreview = cursor && fits(cursor);
+      draw(board, partial.values(), size, {
+        grid: true,
+        preview: isPreview ? translated(pieces[selected], cursor) : [],
+        anchor: isPreview ? cursor : null,
+      });
+    }
+
+    function drawTarget() {
+      const {size, pieces, placements} = puzzle();
+      draw($('target'), oddSegments(pieces, placements).values(), size, {grid: true});
+    }
+
+    function renderProgress() {
+      const available = passed.indexOf(false);
+      nav.replaceChildren(...puzzles.map((_, index) => {
         const button = document.createElement('button');
-        const suffix = records[index] ? t('，已通过', ', cleared') : '';
         button.type = 'button';
-        button.className = 'level-tab';
-        button.textContent = `${levelName(index)}${records[index] ? ' ✓' : ''}`;
-        button.setAttribute('aria-label', `${levelName(index)}, ${label(level.title)}${suffix}`);
+        button.textContent = levelText(index) + (passed[index] ? ' ✓' : '');
+        button.disabled = available >= 0 && index > available;
         if (index === current) button.setAttribute('aria-current', 'step');
-        button.disabled = firstIncomplete >= 0 && index > firstIncomplete;
         button.addEventListener('click', () => enter(index));
         return button;
       }));
-      $('score').textContent = `${scoreTotal()} / ${points(500)}`;
+      $('stage-title').textContent = t(...captions[current]);
+      $('score').textContent = scoreText();
+      $('back-results').hidden = !cleared();
+      $('next').hidden = !passed[current] || current === puzzles.length - 1 || cleared();
     }
 
-    function showMetrics(result = null) {
-      const level = levels[current];
-      const baseline = baselines[current];
-      const rows = level.tasks.map((name, task) => [
-        label(name), `${value(baseline.accuracy[task])}%`,
-        result ? `${value(result.accuracy[task])}%` : '—',
-        result ? `${signed(value(-result.losses[task]))} pp` : '—',
-      ]);
-      rows.push([label('计算量'), baseline.cost, result?.cost ?? '—', result ? signed(result.cost - baseline.cost) : '—']);
-      $('metrics').replaceChildren(...rows.map(([label, ...values]) => {
-        const row = document.createElement('tr');
-        const heading = document.createElement('th');
-        heading.scope = 'row';
-        heading.textContent = label;
-        row.append(heading);
-        for (const item of values) row.insertCell().textContent = item;
-        return row;
+    function renderPieces() {
+      tray.replaceChildren(...puzzle().pieces.map((piece, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.piece = index;
+        const image = document.createElement('canvas');
+        image.width = image.height = 76;
+        image.setAttribute('aria-hidden', 'true');
+        const label = document.createElement('span');
+        button.append(image, label);
+        draw(image, piece, Math.max(...pieceBounds(piece)) + 1, {anchor: [0, 0]});
+        button.addEventListener('click', () => {
+          selected = index;
+          cursor = positions[index];
+          updatePieces();
+          drawBoard();
+        });
+        return button;
       }));
+      updatePieces();
     }
 
-    function clearResult() {
-      lastResult = null;
-      renderResult();
+    function updatePieces() {
+      for (const button of tray.children) {
+        const index = Number(button.dataset.piece);
+        button.setAttribute('aria-pressed', String(index === selected));
+        button.setAttribute('aria-label', pieceText(index) + (positions[index] ? t('，已放置', ', placed') : ''));
+        button.lastChild.textContent = (index + 1) + (positions[index] ? ' ✓' : '');
+      }
+      $('undo').disabled = !history.length;
+      $('clear').disabled = !positions.some(Boolean);
+    }
+
+    function say(key) {
+      note = key;
+      $('feedback').textContent = t(...notes[key]);
     }
 
     function enter(index, focus = true) {
       current = index;
-      mask = fullMask(levels[index]);
-      lastResult = null;
-      $('completion').hidden = true;
+      positions = puzzle().pieces.map(() => null);
+      history = [];
+      selected = 0;
+      cursor = null;
+      dragging = false;
       $('game').hidden = false;
-      renderLevel();
-      if (focus) $('level-title').focus();
+      $('completion').hidden = true;
+      renderProgress();
+      renderPieces();
+      drawTarget();
+      drawBoard();
+      say('start');
+      if (focus) $('stage-title').focus();
     }
 
-    function renderLevel() {
-      const level = levels[current];
-      $('return-summary').hidden = !complete();
-      $('level-title').textContent = label(level.title);
-      $('level-description').textContent = label(level.description);
-      $('layer-note').textContent = t(`固定开销 ${level.fixedCost} 单位。`, `Fixed cost: ${level.fixedCost} units. `)
-        + (level.interactions?.length ? t(`本关有 ${level.interactions.length} 组层间相互作用。`, `Layer interactions: ${level.interactions.length}.`) : t('本关各层的贡献独立相加。', 'Layer contributions are additive.'));
-      const rules = [
-        level.minOff === level.maxOff ? t(`恰好关闭 ${level.minOff} 层`, `Disable exactly ${level.minOff} layer(s)`) : t(`至少关闭 ${level.minOff} 层`, `Disable at least ${level.minOff} layer(s)`),
-        ...level.tasks.map((name, i) => t(`${name}下降不超过 ${value(level.lossLimit[i])} 个百分点`, `${label(name)} drop ≤ ${value(level.lossLimit[i])} pp`)),
-      ];
-      if (level.costLimit !== undefined) rules.push(t(`计算量最多 ${level.costLimit} 单位`, `Compute cost ≤ ${level.costLimit} units`));
-      $('requirements').replaceChildren(...rules.map(rule => {
-        const item = document.createElement('li');
-        item.textContent = rule;
-        return item;
-      }));
-      for (const label of $('layers').querySelectorAll('.layer')) label.remove();
-      level.layers.forEach((layer, i) => {
-        const layerLabel = document.createElement('label');
-        layerLabel.className = 'layer';
-        const parts = [['index', `L${i + 1}`], ['layer-title', label(layer.name)], ['layer-cost', `${layer.cost} ${t('单位', 'units')}`]];
-        for (const [className, text] of parts) {
-          const span = document.createElement('span');
-          span.className = className;
-          span.textContent = text;
-          layerLabel.append(span);
-        }
-        const toggle = document.createElement('input');
-        toggle.type = 'checkbox';
-        toggle.checked = layerOn(mask, i);
-        toggle.setAttribute('aria-label', `${t('启用', 'Enable')} L${i + 1} ${label(layer.name)}`);
-        toggle.addEventListener('change', () => {
-          mask ^= 1 << i;
-          clearResult();
-        });
-        layerLabel.append(toggle);
-        $('layers').append(layerLabel);
-      });
-      navigation();
-      renderResult();
-    }
-
-    function showCompletion(focus = true) {
+    function showResults(focus = true) {
       $('game').hidden = true;
       $('completion').hidden = false;
-      $('final-score').textContent = `${scoreTotal()} / ${points(500)}`;
-      $('summary-list').replaceChildren(...levels.map((level, index) => {
-        const item = document.createElement('li');
-        const title = document.createElement('strong');
-        const score = document.createElement('span');
+      $('final-score').textContent = scoreText();
+      $('results').replaceChildren(...points.map((value, index) => {
+        const row = document.createElement('li');
+        const text = document.createElement('span');
+        text.textContent = t(`${levelText(index)} · ${value} 分`, `${levelText(index)} · ${value} pts`);
         const replay = document.createElement('button');
-        title.textContent = `${levelName(index)} · ${label(level.title)}`;
-        score.textContent = points(records[index].score);
         replay.type = 'button';
-        replay.textContent = label('重玩');
+        replay.textContent = t('重玩', 'Replay');
         replay.setAttribute('aria-label', t(`重玩第 ${index + 1} 关`, `Replay level ${index + 1}`));
         replay.addEventListener('click', () => enter(index));
-        item.append(title, score, replay);
-        return item;
+        row.append(text, replay);
+        return row;
       }));
       if (focus) $('completion-title').focus();
     }
 
-    function renderResult() {
-      const level = levels[current];
-      const enabled = level.layers.filter((_, index) => layerOn(mask, index)).length;
-      const ratio = `${enabled} / ${level.layers.length}`;
-      $('activation-count').textContent = t(`已开启 ${ratio}`, `${ratio} active`);
-      showMetrics(lastResult);
-      const feedback = $('feedback');
-      if (!lastResult) {
-        feedback.hidden = true;
-        $('next').hidden = true;
+    function place(position) {
+      if (!fits(position)) {
+        say('outside');
         return;
       }
-      const pass = !lastResult.failures.length;
-      const headline = document.createElement('strong');
-      const detail = document.createElement('p');
-      if (pass) {
-        const score = scoreFor(lastResult);
-        headline.textContent = t(`通过 · 本次 ${points(score)}`, `Passed · ${points(score)} this run`);
-        detail.textContent = t(`本关最高 ${points(records[current].score)}。可以比较另一种组合，或进入下一关。`,
-          `Best for this level: ${points(records[current].score)}. Try another combination or go to the next level.`);
-      } else {
-        headline.textContent = label('本次未达成条件');
-        detail.textContent = lastResult.failures.join(t('，', '. ')) + t('。', '.');
-      }
-      $('next').hidden = !pass;
-      feedback.className = `status ${pass ? 'pass' : 'fail'}`;
-      feedback.replaceChildren(headline, detail);
-      feedback.hidden = false;
+      const previous = positions[selected];
+      if (previous && previous[0] === position[0] && previous[1] === position[1]) return;
+      history.push({index: selected, previous});
+      positions[selected] = position;
+      const nextPiece = positions.indexOf(null);
+      if (nextPiece >= 0) selected = nextPiece;
+      cursor = null;
+      updatePieces();
+      drawBoard();
+      say('placed');
     }
 
-    const scoreFor = result => Math.round(100 * result.quality / bestQualities[current]);
-
-    function runAblation() {
-      lastResult = evaluate(levels[current], mask, baselines[current]);
-      if (!lastResult.failures.length) {
-        const score = scoreFor(lastResult);
-        if (!records[current] || score > records[current].score) records[current] = { score };
-        if (complete()) {
-          showCompletion();
-          return;
-        }
-        navigation();
-      }
-      renderResult();
-    }
-
-    function restart() {
-      records = Array(levels.length).fill(null);
-      enter(0);
-    }
-
-    $('run').addEventListener('click', runAblation);
-    $('restore').addEventListener('click', () => {
-      mask = fullMask(levels[current]);
-      for (const input of $('layers').querySelectorAll('input')) input.checked = true;
-      clearResult();
+    board.addEventListener('pointerdown', event => {
+      if (!event.isPrimary || event.button !== 0) return;
+      dragging = true;
+      board.setPointerCapture(event.pointerId);
+      cursor = gridPosition(board, puzzle().size, event);
+      drawBoard();
     });
-    $('next').addEventListener('click', () => enter(current + 1));
-    $('return-summary').addEventListener('click', () => showCompletion());
-    $('restart').addEventListener('click', restart);
-    $('restart-completion').addEventListener('click', restart);
-    onLanguageChange(() => {
-      if (!$('completion').hidden) showCompletion(false);
+    board.addEventListener('pointermove', event => {
+      if (!event.isPrimary || (!dragging && event.pointerType !== 'mouse')) return;
+      cursor = gridPosition(board, puzzle().size, event);
+      drawBoard();
+    });
+    board.addEventListener('pointerup', event => {
+      if (!dragging || !event.isPrimary) return;
+      dragging = false;
+      place(gridPosition(board, puzzle().size, event));
+    });
+    board.addEventListener('pointerleave', () => { if (!dragging) { cursor = null; drawBoard(); } });
+    board.addEventListener('pointercancel', () => { dragging = false; cursor = null; drawBoard(); });
+    board.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        place(cursor ?? positions[selected] ?? [0, 0]);
+        return;
+      }
+      const direction = {ArrowLeft: [-1,0], ArrowRight: [1,0], ArrowUp: [0,-1], ArrowDown: [0,1]}[event.key];
+      if (!direction) return;
+      event.preventDefault();
+      const start = cursor ?? positions[selected] ?? [0, 0];
+      const next = start.map((coordinate, axis) => coordinate + direction[axis]);
+      cursor = fits(next) ? next : start;
+      drawBoard();
+    });
+
+    $('check').addEventListener('click', () => {
+      if (positions.some(position => position === null)) return say('missing');
+      const solution = oddSegments(puzzle().pieces, puzzle().placements);
+      const actual = oddSegments(puzzle().pieces, positions);
+      if (actual.size !== solution.size || [...actual.keys()].some(line => !solution.has(line))) return say('mismatch');
+      passed[current] = true;
+      if (cleared()) showResults();
       else {
-        if (lastResult) lastResult = evaluate(levels[current], mask, baselines[current]);
-        renderLevel();
+        say('solved');
+        renderProgress();
       }
     });
+    $('undo').addEventListener('click', () => {
+      const {index, previous} = history.pop();
+      positions[index] = previous;
+      selected = index;
+      cursor = null;
+      updatePieces();
+      drawBoard();
+      say('undone');
+    });
+    $('clear').addEventListener('click', () => { enter(current, false); say('cleared'); });
+    $('next').addEventListener('click', () => enter(current + 1));
+    $('back-results').addEventListener('click', () => showResults());
+    $('restart').addEventListener('click', () => { passed = puzzles.map(() => false); enter(0); });
+
+    function displayLanguage() {
+      document.documentElement.lang = t('zh-CN', 'en');
+      document.title = t('层叠消融', 'Layer Overlay Puzzle');
+      meta.content = t(chineseDescription, 'Slide pieces to match a target using odd and even overlaps.');
+      for (const [element, zh] of staticCopy) element.textContent = t(zh, element.dataset.en);
+      for (const [element, zh] of staticLabels) element.setAttribute('aria-label', t(zh, element.dataset.enLabel));
+      $('language').textContent = t('EN', '中文');
+      $('language').setAttribute('aria-label', t('Switch to English', '切换到中文'));
+    }
+
+    $('language').addEventListener('click', () => {
+      lang = t('en', 'zh');
+      try { localStorage.setItem('mybian-language', lang); } catch {}
+      displayLanguage();
+      if (!$('completion').hidden) showResults(false);
+      else {
+        renderProgress();
+        updatePieces();
+        say(note);
+      }
+    });
+
+    displayLanguage();
     enter(0, false);
   </script>
 </body>
