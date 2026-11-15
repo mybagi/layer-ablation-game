@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="五关神经网络层消融练习。比较模拟准确率和计算量，在约束下找到合适的层组合。">
+  <title>层叠消融</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080e1c;
+      --panel: #101a2d;
+      --raised: #15223a;
+      --line: #2a3955;
+      --ink: #eaf0fc;
+      --muted: #acbbd5;
+      --accent: #8de9cf;
+      --accent-ink: #112a25;
+      --danger: #ffb4af;
+      font: 16px/1.55 Inter, system-ui, "Microsoft YaHei", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-width: 0;
+      background: radial-gradient(ellipse at 30% 0%, #152341, transparent 42rem), var(--bg);
+      color: var(--ink);
+    }
+    [hidden] { display: none !important; }
+    a { color: var(--accent); text-underline-offset: .22em; }
+    button, input { font: inherit; }
+    button {
+      min-height: 44px;
+      border: 1px solid var(--line);
+      border-radius: .55rem;
+      padding: .55rem .85rem;
+      background: var(--raised);
+      color: var(--ink);
+      cursor: pointer;
+    }
+    button:hover:not(:disabled) { border-color: var(--accent); }
+    button:disabled { color: #8794ad; background: #111a29; cursor: default; }
+    button:focus-visible, a:focus-visible, summary:focus-visible, input:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+    .wrap { width: min(calc(100% - 2rem), 1070px); margin-inline: auto; }
+    .site-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: .7rem;
+      min-height: 4.1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .wordmark { font: 500 .9rem/1.2 "IBM Plex Mono", ui-monospace, monospace; color: var(--accent); }
+    .site-header a { font-size: .9rem; }
+    .intro { margin: 2.1rem 0 1.25rem; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(2.2rem, 6vw, 3.65rem); line-height: 1.08; letter-spacing: -.035em; }
+    h2 { font-size: clamp(1.43rem, 4vw, 2rem); line-height: 1.28; }
+    h3 { font-size: 1rem; }
+    .intro p { color: var(--muted); max-width: 46em; margin-top: .8rem; }
+    .level-nav { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; margin: 0 0 1rem; }
+    .level-tab { padding-inline: .35rem; font-size: .87rem; }
+    .level-tab[aria-current="step"] { background: #1b3b3d; color: var(--accent); border-color: #4e8e83; }
+    .stage-header { display: flex; justify-content: space-between; align-items: start; gap: 1rem; margin: .1rem 0 .95rem; }
+    .stage-header p { margin-top: .35rem; color: var(--muted); }
+    .score { flex: none; color: var(--accent); padding: .35rem .65rem; border: 1px solid #3b625f; border-radius: .5rem; font-variant-numeric: tabular-nums; font-size: .9rem; }
+    .lab { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .94fr); gap: 1rem; align-items: start; }
+    .panel { min-width: 0; border: 1px solid var(--line); background: var(--panel); padding: 1rem; border-radius: .85rem; }
+    .panel-heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .3rem .6rem; margin-bottom: .75rem; }
+    .panel-heading span, .muted { color: var(--muted); font-size: .82rem; }
+    .layers { display: grid; gap: .42rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+    .layer {
+      display: grid;
+      grid-template-columns: 2rem minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: .45rem;
+      background: var(--raised);
+      border: 1px solid var(--line);
+      padding: .38rem .55rem;
+      border-radius: .5rem;
+      min-height: 46px;
+      cursor: pointer;
+    }
+    .layer:has(input:checked) { border-color: #3a615f; }
+    .layer:has(input:not(:checked)) .layer-title { color: var(--muted); }
+    .index { color: var(--accent); font: 500 .77rem/1 "IBM Plex Mono", ui-monospace, monospace; }
+    .layer-title { font-size: .87rem; overflow-wrap: anywhere; }
+    .layer-cost { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .78rem; white-space: nowrap; }
+    .layer input { margin: .15rem; width: 1.15rem; height: 1.15rem; accent-color: var(--accent); cursor: pointer; }
+    .layer-note, .checklist { font-size: .87rem; color: var(--muted); }
+    .layer-note { margin-top: .75rem; }
+    .checklist { padding-left: 1.2rem; margin: 0 0 .9rem; }
+    .checklist li + li { margin-top: .25rem; }
+    table { width: 100%; border-collapse: collapse; font-size: .83rem; font-variant-numeric: tabular-nums; }
+    th, td { padding: .4rem .18rem; border-bottom: 1px solid var(--line); text-align: right; }
+    th:first-child { text-align: left; }
+    thead th { color: var(--muted); font-weight: 500; }
+    tbody th { font-weight: 600; }
+    td { white-space: nowrap; }
+    .actions { display: flex; flex-wrap: wrap; gap: .45rem; margin-top: .95rem; }
+    .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
+    .primary:hover:not(:disabled) { background: #b3f2e0; }
+    .status { margin-top: .85rem; padding: .68rem .75rem; border: 1px solid var(--line); border-radius: .5rem; }
+    .status p { font-size: .86rem; color: var(--muted); }
+    .status.pass { border-color: #4c8c7f; }
+    .status.pass strong { color: var(--accent); }
+    .status.fail { border-color: #8b5c62; }
+    .status.fail strong { color: var(--danger); }
+    .status strong { display: block; margin-bottom: .15rem; }
+    details { margin: 1rem 0 0; color: var(--muted); font-size: .9rem; }
+    summary { color: var(--ink); cursor: pointer; width: fit-content; }
+    details p { margin-top: .65rem; }
+    .completion { margin: 1.4rem auto; max-width: 690px; padding: clamp(1rem, 4vw, 2rem); }
+    .completion h2 { color: var(--accent); }
+    .completion p { color: var(--muted); margin-top: .35rem; }
+    .completion output { display: block; color: var(--ink); font-size: 2.3rem; font-weight: 750; font-variant-numeric: tabular-nums; margin: .3rem 0 .8rem; }
+    .summary-list { margin: .7rem 0 0; padding: 0; list-style: none; }
+    .summary-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .52rem; padding: .5rem 0; border-top: 1px solid var(--line); }
+    .summary-list span { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .7rem; border-top: 1px solid var(--line); margin-top: 1.6rem; padding: .95rem 0 1.55rem; font-size: .84rem; color: var(--muted); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    @media (max-width: 740px) {
+      .intro { margin-top: 1.4rem; }
+      .lab { grid-template-columns: minmax(0, 1fr); }
+      .stage-header { gap: .6rem; }
+    }
+    @media (max-width: 400px) {
+      .wrap { width: calc(100% - 1.2rem); }
+      .panel { padding: .75rem; }
+      .level-tab { font-size: .75rem; }
+      .score { font-size: .78rem; }
+      .layer { grid-template-columns: 1.5rem minmax(0, 1fr) auto auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header wrap">
+    <span class="wordmark" aria-hidden="true">ABLATION LAB</span>
+    <a href="https://mybian.cn/funzone">返回趣味研究</a>
+  </header>
+  <main class="wrap">
+    <section class="intro" aria-labelledby="game-title">
+      <h1 id="game-title">层叠消融</h1>
+      <p>关闭神经网络中的一层或多层，与全开启的基线比较。在计算预算内，尽量保住任务准确率。所有指标由教学模型模拟。</p>
+    </section>
+    <section id="game" aria-labelledby="level-title">
+      <nav id="level-nav" class="level-nav" aria-label="选择关卡"></nav>
+      <div class="stage-header">
+        <div>
+          <h2 id="level-title" tabindex="-1"></h2>
+          <p id="level-description"></p>
+        </div>
+        <output id="score" class="score" aria-label="累计分数"></output>
+      </div>
+      <div class="lab">
+        <div class="panel">
+          <div class="panel-heading">
+            <h3>启用层</h3>
+            <span id="activation-count"></span>
+          </div>
+          <fieldset id="layers" class="layers"><legend class="sr-only">勾选保持开启的网络层</legend></fieldset>
+          <p id="layer-note" class="layer-note"></p>
+        </div>
+        <div class="panel">
+          <div class="panel-heading"><h3>通关条件</h3><span>模拟实验</span></div>
+          <ul id="requirements" class="checklist"></ul>
+          <table>
+            <caption class="sr-only">全层基线和所选消融配置的模拟指标</caption>
+            <thead><tr><th scope="col">指标</th><th scope="col">基线</th><th scope="col">本次</th><th scope="col">变化</th></tr></thead>
+            <tbody id="metrics"></tbody>
+          </table>
+          <div id="feedback" class="status" role="status" aria-live="polite" hidden></div>
+          <div class="actions">
+            <button id="run" class="primary" type="button">运行消融实验</button>
+            <button id="restore" type="button">恢复全层</button>
+            <button id="next" type="button" hidden>进入下一关</button>
+            <button id="return-summary" type="button" hidden>返回通关结果</button>
+          </div>
+        </div>
+      </div>
+      <details>
+        <summary>怎么看消融结果？</summary>
+        <p>基线保留全部网络层。同一关的评估数据、模型参数和计算规则固定，实验只改变哪些层参与计算。同时关闭多层时，差值反映这组操作的共同影响。</p>
+        <p>模拟准确率由固定起点、已开启层的贡献和同时开启的层对贡献相加得到。计算量是固定开销与已开启层的开销之和。分数按准确率保留程度和节省的计算量计算，同一关只保留最高分。</p>
+      </details>
+      <div class="actions"><button id="restart" type="button">重新开始五关</button></div>
+    </section>
+    <section id="completion" class="completion panel" aria-labelledby="completion-title" hidden>
+      <h2 id="completion-title" tabindex="-1">恭喜，五关全部通过！</h2>
+      <p>你在每个场景中都找到了满足准确率与计算约束的层组合。</p>
+      <output id="final-score" aria-label="通关累计分数"></output>
+      <ul id="summary-list" class="summary-list"></ul>
+      <div class="actions"><button id="restart-completion" class="primary" type="button">重新开始五关</button></div>
+    </section>
+    <noscript><p class="panel">启用 JavaScript 即可在本地运行游戏。</p></noscript>
+  </main>
+  <footer class="footer wrap"><span>教学模拟</span><span>更新于 <time datetime="2026-11-15">2026-11-15</time></span></footer>
+  <script>
+    'use strict';
+
+    // Accuracy is stored in tenths of one percentage point.
+    const levels = [
+      {
+        title: '先关一层',
+        description: '只改变一层，找出关闭后几乎不影响分类准确率的层。',
+        tasks: ['分类准确率'], floor: [714], fixedCost: 10, minOff: 1, maxOff: 1, lossLimit: [8],
+        layers: [
+          { name: '输入投影', cost: 18, effect: [85] },
+          { name: '特征聚合', cost: 19, effect: [105] },
+          { name: '末端校准', cost: 15, effect: [4] },
+        ],
+      },
+      {
+        title: '压缩计算量',
+        description: '单独关一层不一定能省够计算量。比较几种层组合的代价。',
+        tasks: ['分类准确率'], floor: [710], fixedCost: 10, minOff: 1, costLimit: 62, lossLimit: [15],
+        layers: [
+          { name: '输入编码', cost: 20, effect: [92] },
+          { name: '注意力混合', cost: 20, effect: [76] },
+          { name: '特征投影', cost: 14, effect: [5] },
+          { name: '输出平滑', cost: 12, effect: [6] },
+          { name: '输出校准', cost: 10, effect: [9] },
+        ],
+      },
+      {
+        title: '保护两个任务',
+        description: '一层对分类的影响很小，也可能对序列标注很重要。两项指标都要过线。',
+        tasks: ['分类准确率', '标注准确率'], floor: [700, 670], fixedCost: 10, minOff: 1, costLimit: 77, lossLimit: [9, 7],
+        layers: [
+          { name: '共享编码', cost: 20, effect: [86, 76] },
+          { name: '全局池化', cost: 17, effect: [53, 7] },
+          { name: '位置混合', cost: 18, effect: [5, 84] },
+          { name: '通道投影', cost: 13, effect: [3, 3] },
+          { name: '辅助门控', cost: 12, effect: [4, 2] },
+        ],
+      },
+      {
+        title: '识别层间协同',
+        description: '全局池化与上下文门控同时开启时有协同贡献。先观察单层差值，再试组合。',
+        tasks: ['分类准确率', '标注准确率'], floor: [710, 690], fixedCost: 10, minOff: 2, costLimit: 73, lossLimit: [11, 10],
+        layers: [
+          { name: '共享编码', cost: 19, effect: [80, 76] },
+          { name: '全局池化', cost: 17, effect: [46, 8] },
+          { name: '上下文门控', cost: 14, effect: [3, 4] },
+          { name: '标注特征', cost: 13, effect: [7, 37] },
+          { name: '辅助投影', cost: 12, effect: [2, 3] },
+          { name: '末端校准', cost: 8, effect: [3, 1] },
+        ],
+        interactions: [{ pair: [1, 2], effect: [18, 9] }],
+      },
+      {
+        title: '部署前的折中',
+        description: '同时考虑协同、冗余和更紧的预算。找到可行方案后，还可以比较分数。',
+        tasks: ['分类准确率', '标注准确率'], floor: [730, 690], fixedCost: 14, minOff: 2, costLimit: 97, lossLimit: [9, 10],
+        layers: [
+          { name: '共享编码', cost: 20, effect: [64, 62] },
+          { name: '全局池化', cost: 18, effect: [47, 8] },
+          { name: '位置混合', cost: 17, effect: [9, 55] },
+          { name: '上下文门控', cost: 16, effect: [4, 3] },
+          { name: '辅助投影', cost: 14, effect: [5, 4] },
+          { name: '标注适配', cost: 12, effect: [6, 8] },
+          { name: '冗余校准', cost: 9, effect: [-3, 1] },
+          { name: '输出平滑', cost: 8, effect: [2, 2] },
+        ],
+        interactions: [
+          { pair: [1, 3], effect: [13, 5] },
+          { pair: [2, 5], effect: [4, 12] },
+          { pair: [4, 6], effect: [-7, -2] },
+          { pair: [6, 7], effect: [-2, 0] },
+        ],
+      },
+    ];
+
+    const $ = id => document.getElementById(id);
+    const fullMask = level => (1 << level.layers.length) - 1;
+    const layerOn = (mask, index) => Boolean(mask & (1 << index));
+    const value = amount => (amount / 10).toFixed(1);
+    const signed = amount => amount > 0 ? `+${amount}` : String(amount);
+
+    function simulate(level, mask) {
+      const accuracy = [...level.floor];
+      let cost = level.fixedCost;
+      let off = 0;
+      level.layers.forEach((layer, index) => {
+        if (layerOn(mask, index)) {
+          cost += layer.cost;
+          layer.effect.forEach((effect, task) => { accuracy[task] += effect; });
+        } else {
+          off += 1;
+        }
+      });
+      for (const { pair, effect } of level.interactions ?? []) {
+        if (pair.every(index => layerOn(mask, index))) {
+          effect.forEach((change, task) => { accuracy[task] += change; });
+        }
+      }
+      return { accuracy, cost, off };
+    }
+
+    function evaluate(level, mask, baseline) {
+      const result = simulate(level, mask);
+      const losses = baseline.accuracy.map((accuracy, task) => accuracy - result.accuracy[task]);
+      const failures = [];
+      if (result.off < level.minOff || result.off > (level.maxOff ?? Infinity)) {
+        failures.push(level.minOff === level.maxOff ? `请关闭 ${level.minOff} 层` : `至少关闭 ${level.minOff} 层`);
+      }
+      if (result.cost > (level.costLimit ?? Infinity)) failures.push(`计算量需降到 ${level.costLimit} 以内`);
+      losses.forEach((loss, task) => {
+        if (loss > level.lossLimit[task]) failures.push(`${level.tasks[task]}下降超过 ${value(level.lossLimit[task])} 个百分点`);
+      });
+      const meanLossFraction = losses.reduce((sum, loss, task) => sum + Math.max(0, loss) / level.lossLimit[task], 0) / losses.length;
+      const quality = .65 * (1 - meanLossFraction) + .35 * (1 - result.cost / baseline.cost);
+      return { ...result, losses, quality, failures };
+    }
+
+    const baselines = levels.map(level => simulate(level, fullMask(level)));
+    const bestQualities = levels.map((level, index) => {
+      let best = 0;
+      for (let mask = 0; mask <= fullMask(level); mask += 1) {
+        const run = evaluate(level, mask, baselines[index]);
+        if (!run.failures.length) best = Math.max(best, run.quality);
+      }
+      return best;
+    });
+
+    let current = 0;
+    let mask = fullMask(levels[0]);
+    let records = Array(levels.length).fill(null);
+    const scoreTotal = () => records.reduce((sum, record) => sum + (record?.score ?? 0), 0);
+    const complete = () => records.every(Boolean);
+
+    function navigation() {
+      const firstIncomplete = records.findIndex(record => !record);
+      $('level-nav').replaceChildren(...levels.map((level, index) => {
+        const button = document.createElement('button');
+        const suffix = records[index] ? '，已通过' : '';
+        button.type = 'button';
+        button.className = 'level-tab';
+        button.textContent = `第 ${index + 1} 关${records[index] ? ' ✓' : ''}`;
+        button.setAttribute('aria-label', `第 ${index + 1} 关，${level.title}${suffix}`);
+        if (index === current) button.setAttribute('aria-current', 'step');
+        button.disabled = firstIncomplete >= 0 && index > firstIncomplete;
+        button.addEventListener('click', () => enter(index));
+        return button;
+      }));
+      $('score').textContent = `${scoreTotal()} / 500 分`;
+    }
+
+    function showMetrics(result = null) {
+      const level = levels[current];
+      const baseline = baselines[current];
+      const rows = level.tasks.map((name, task) => [
+        name, `${value(baseline.accuracy[task])}%`,
+        result ? `${value(result.accuracy[task])}%` : '—',
+        result ? `${signed(value(-result.losses[task]))} pp` : '—',
+      ]);
+      rows.push(['计算量', baseline.cost, result?.cost ?? '—', result ? signed(result.cost - baseline.cost) : '—']);
+      $('metrics').replaceChildren(...rows.map(([label, ...values]) => {
+        const row = document.createElement('tr');
+        const heading = document.createElement('th');
+        heading.scope = 'row';
+        heading.textContent = label;
+        row.append(heading);
+        for (const item of values) row.insertCell().textContent = item;
+        return row;
+      }));
+    }
+
+    function clearResult() {
+      $('feedback').hidden = true;
+      $('next').hidden = true;
+      $('activation-count').textContent = `已开启 ${levels[current].layers.filter((_, index) => layerOn(mask, index)).length} / ${levels[current].layers.length}`;
+      showMetrics();
+    }
+
+    function enter(index, focus = true) {
+      current = index;
+      const level = levels[index];
+      mask = fullMask(level);
+      $('completion').hidden = true;
+      $('game').hidden = false;
+      $('return-summary').hidden = !complete();
+      $('level-title').textContent = level.title;
+      $('level-description').textContent = level.description;
+      $('layer-note').textContent = `固定开销 ${level.fixedCost} 单位。${level.interactions?.length ? `本关有 ${level.interactions.length} 组层间相互作用。` : '本关各层的贡献独立相加。'}`;
+      const rules = [
+        level.minOff === level.maxOff ? `恰好关闭 ${level.minOff} 层` : `至少关闭 ${level.minOff} 层`,
+        ...level.tasks.map((name, i) => `${name}下降不超过 ${value(level.lossLimit[i])} 个百分点`),
+      ];
+      if (level.costLimit !== undefined) rules.push(`计算量最多 ${level.costLimit} 单位`);
+      $('requirements').replaceChildren(...rules.map(rule => {
+        const item = document.createElement('li');
+        item.textContent = rule;
+        return item;
+      }));
+      for (const label of $('layers').querySelectorAll('.layer')) label.remove();
+      level.layers.forEach((layer, i) => {
+        const label = document.createElement('label');
+        label.className = 'layer';
+        const parts = [['index', `L${i + 1}`], ['layer-title', layer.name], ['layer-cost', `${layer.cost} 单位`]];
+        for (const [className, text] of parts) {
+          const span = document.createElement('span');
+          span.className = className;
+          span.textContent = text;
+          label.append(span);
+        }
+        const toggle = document.createElement('input');
+        toggle.type = 'checkbox';
+        toggle.checked = true;
+        toggle.setAttribute('aria-label', `启用 L${i + 1} ${layer.name}`);
+        toggle.addEventListener('change', () => {
+          mask ^= 1 << i;
+          clearResult();
+        });
+        label.append(toggle);
+        $('layers').append(label);
+      });
+      navigation();
+      clearResult();
+      if (focus) $('level-title').focus();
+    }
+
+    function showCompletion() {
+      $('game').hidden = true;
+      $('completion').hidden = false;
+      $('final-score').textContent = `${scoreTotal()} / 500 分`;
+      $('summary-list').replaceChildren(...levels.map((level, index) => {
+        const item = document.createElement('li');
+        const title = document.createElement('strong');
+        const score = document.createElement('span');
+        const replay = document.createElement('button');
+        title.textContent = `第 ${index + 1} 关 · ${level.title}`;
+        score.textContent = `${records[index].score} 分`;
+        replay.type = 'button';
+        replay.textContent = '重玩';
+        replay.setAttribute('aria-label', `重玩第 ${index + 1} 关`);
+        replay.addEventListener('click', () => enter(index));
+        item.append(title, score, replay);
+        return item;
+      }));
+      $('completion-title').focus();
+    }
+
+    function runAblation() {
+      const result = evaluate(levels[current], mask, baselines[current]);
+      const pass = !result.failures.length;
+      const feedback = $('feedback');
+      const headline = document.createElement('strong');
+      const detail = document.createElement('p');
+      showMetrics(result);
+      if (pass) {
+        const score = Math.round(100 * result.quality / bestQualities[current]);
+        if (!records[current] || score > records[current].score) records[current] = { score };
+        if (complete()) {
+          showCompletion();
+          return;
+        }
+        headline.textContent = `通过 · 本次 ${score} 分`;
+        detail.textContent = `本关最高 ${records[current].score} 分。可以比较另一种组合，或进入下一关。`;
+        $('next').hidden = false;
+        navigation();
+      } else {
+        headline.textContent = '本次未达成条件';
+        detail.textContent = result.failures.join('，') + '。';
+        $('next').hidden = true;
+      }
+      feedback.className = `status ${pass ? 'pass' : 'fail'}`;
+      feedback.replaceChildren(headline, detail);
+      feedback.hidden = false;
+    }
+
+    function restart() {
+      records = Array(levels.length).fill(null);
+      enter(0);
+    }
+
+    $('run').addEventListener('click', runAblation);
+    $('restore').addEventListener('click', () => {
+      mask = fullMask(levels[current]);
+      for (const input of $('layers').querySelectorAll('input')) input.checked = true;
+      clearResult();
+    });
+    $('next').addEventListener('click', () => enter(current + 1));
+    $('return-summary').addEventListener('click', showCompletion);
+    $('restart').addEventListener('click', restart);
+    $('restart-completion').addEventListener('click', restart);
+    enter(0, false);
+  </script>
+</body>
+</html>
