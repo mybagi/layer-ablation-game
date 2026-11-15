@@ -128,72 +128,143 @@
       .score { font-size: .78rem; }
       .layer { grid-template-columns: 1.5rem minmax(0, 1fr) auto auto; }
     }
-  </style>
+    .game-nav { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: .35rem .75rem; }
+  .game-nav .language { min-height: 36px; padding: .2rem .52rem; font-size: .82rem; }
+</style>
 </head>
 <body>
   <header class="site-header wrap">
     <span class="wordmark" aria-hidden="true">ABLATION LAB</span>
-    <a href="https://mybian.cn/funzone">返回趣味研究</a>
+    <div class="game-nav"><a href="https://mybian.cn/funzone"><span data-en="Fun Zone">返回趣味研究</span></a><button class="language" type="button" aria-label="Switch to English">EN</button></div>
   </header>
   <main class="wrap">
     <section class="intro" aria-labelledby="game-title">
-      <h1 id="game-title">层叠消融</h1>
-      <p>关闭神经网络中的一层或多层，与全开启的基线比较。在计算预算内，尽量保住任务准确率。所有指标由教学模型模拟。</p>
+      <h1 id="game-title"><span data-en="Layer ablation">层叠消融</span></h1>
+      <p><span data-en="Switch off one or more layers and compare with the full network. Preserve task accuracy within a compute budget. All metrics come from a teaching simulation.">关闭神经网络中的一层或多层，与全开启的基线比较。在计算预算内，尽量保住任务准确率。所有指标由教学模型模拟。</span></p>
     </section>
     <section id="game" aria-labelledby="level-title">
-      <nav id="level-nav" class="level-nav" aria-label="选择关卡"></nav>
+      <nav id="level-nav" class="level-nav" aria-label="选择关卡" data-en-label="Choose a level"></nav>
       <div class="stage-header">
         <div>
           <h2 id="level-title" tabindex="-1"></h2>
           <p id="level-description"></p>
         </div>
-        <output id="score" class="score" aria-label="累计分数"></output>
+        <output id="score" class="score" aria-label="累计分数" data-en-label="Total score"></output>
       </div>
       <div class="lab">
         <div class="panel">
           <div class="panel-heading">
-            <h3>启用层</h3>
+            <h3><span data-en="Active layers">启用层</span></h3>
             <span id="activation-count"></span>
           </div>
-          <fieldset id="layers" class="layers"><legend class="sr-only">勾选保持开启的网络层</legend></fieldset>
+          <fieldset id="layers" class="layers"><legend class="sr-only"><span data-en="Check the layers to keep active">勾选保持开启的网络层</span></legend></fieldset>
           <p id="layer-note" class="layer-note"></p>
         </div>
         <div class="panel">
-          <div class="panel-heading"><h3>通关条件</h3><span>模拟实验</span></div>
+          <div class="panel-heading"><h3><span data-en="Requirements">通关条件</span></h3><span><span data-en="Simulation">模拟实验</span></span></div>
           <ul id="requirements" class="checklist"></ul>
           <table>
-            <caption class="sr-only">全层基线和所选消融配置的模拟指标</caption>
-            <thead><tr><th scope="col">指标</th><th scope="col">基线</th><th scope="col">本次</th><th scope="col">变化</th></tr></thead>
+            <caption class="sr-only"><span data-en="Simulated metrics for the baseline and selected ablation">全层基线和所选消融配置的模拟指标</span></caption>
+            <thead><tr><th scope="col"><span data-en="Metric">指标</span></th><th scope="col"><span data-en="Baseline">基线</span></th><th scope="col"><span data-en="Trial">本次</span></th><th scope="col"><span data-en="Change">变化</span></th></tr></thead>
             <tbody id="metrics"></tbody>
           </table>
           <div id="feedback" class="status" role="status" aria-live="polite" hidden></div>
           <div class="actions">
-            <button id="run" class="primary" type="button">运行消融实验</button>
-            <button id="restore" type="button">恢复全层</button>
-            <button id="next" type="button" hidden>进入下一关</button>
-            <button id="return-summary" type="button" hidden>返回通关结果</button>
+            <button id="run" class="primary" type="button"><span data-en="Run ablation">运行消融实验</span></button>
+            <button id="restore" type="button"><span data-en="Restore all layers">恢复全层</span></button>
+            <button id="next" type="button" hidden><span data-en="Next level">进入下一关</span></button>
+            <button id="return-summary" type="button" hidden><span data-en="Back to results">返回通关结果</span></button>
           </div>
         </div>
       </div>
       <details>
-        <summary>怎么看消融结果？</summary>
-        <p>基线保留全部网络层。同一关的评估数据、模型参数和计算规则固定，实验只改变哪些层参与计算。同时关闭多层时，差值反映这组操作的共同影响。</p>
-        <p>模拟准确率由固定起点、已开启层的贡献和同时开启的层对贡献相加得到。计算量是固定开销与已开启层的开销之和。分数按准确率保留程度和节省的计算量计算，同一关只保留最高分。</p>
+        <summary><span data-en="How do I read the results?">怎么看消融结果？</span></summary>
+        <p><span data-en="The baseline keeps every layer active. Within a level, the evaluation data, parameters, and scoring rules are fixed. Only the active layers change. An ablation of several layers measures their combined effect.">基线保留全部网络层。同一关的评估数据、模型参数和计算规则固定，实验只改变哪些层参与计算。同时关闭多层时，差值反映这组操作的共同影响。</span></p>
+        <p><span data-en="Simulated accuracy adds a fixed starting value, the contributions of active layers, and interactions between active pairs. Compute cost sums fixed overhead and the cost of active layers. The score rewards accuracy retained and compute saved, and only the best score for each level counts.">模拟准确率由固定起点、已开启层的贡献和同时开启的层对贡献相加得到。计算量是固定开销与已开启层的开销之和。分数按准确率保留程度和节省的计算量计算，同一关只保留最高分。</span></p>
       </details>
-      <div class="actions"><button id="restart" type="button">重新开始五关</button></div>
+      <div class="actions"><button id="restart" type="button"><span data-en="Restart all five levels">重新开始五关</span></button></div>
     </section>
     <section id="completion" class="completion panel" aria-labelledby="completion-title" hidden>
-      <h2 id="completion-title" tabindex="-1">恭喜，五关全部通过！</h2>
-      <p>你在每个场景中都找到了满足准确率与计算约束的层组合。</p>
-      <output id="final-score" aria-label="通关累计分数"></output>
+      <h2 id="completion-title" tabindex="-1"><span data-en="Congratulations! All five levels cleared.">恭喜，五关全部通过！</span></h2>
+      <p><span data-en="You found a configuration that meets the accuracy and compute limits in every scenario.">你在每个场景中都找到了满足准确率与计算约束的层组合。</span></p>
+      <output id="final-score" aria-label="通关累计分数" data-en-label="Final total score"></output>
       <ul id="summary-list" class="summary-list"></ul>
-      <div class="actions"><button id="restart-completion" class="primary" type="button">重新开始五关</button></div>
+      <div class="actions"><button id="restart-completion" class="primary" type="button"><span data-en="Restart all five levels">重新开始五关</span></button></div>
     </section>
-    <noscript><p class="panel">启用 JavaScript 即可在本地运行游戏。</p></noscript>
+    <noscript><p class="panel"><span data-en="Enable JavaScript to play this game locally.">启用 JavaScript 即可在本地运行游戏。</span></p></noscript>
   </main>
-  <footer class="footer wrap"><span>教学模拟</span><span>更新于 <time datetime="2026-11-15">2026-11-15</time></span></footer>
+  <footer class="footer wrap"><span><span data-en="Teaching simulation">教学模拟</span></span><span><span data-en="Last updated">更新于</span> <time datetime="2026-11-15">2026-11-15</time></span></footer>
   <script>
     'use strict';
+
+  let gameLanguage = 'zh';
+  try {
+    if (localStorage.getItem('mybian-language') === 'en') gameLanguage = 'en';
+  } catch {}
+  const t = (zh, en) => gameLanguage === 'en' ? en : zh;
+  const words = {
+    "层叠消融": "Layer ablation",
+    "先关一层": "Remove one layer",
+    "只改变一层，找出关闭后几乎不影响分类准确率的层。": "Switch off one layer and find the one with the smallest effect on classification accuracy.",
+    "分类准确率": "Classification accuracy",
+    "标注准确率": "Tagging accuracy",
+    "输入投影": "Input projection",
+    "特征聚合": "Feature aggregation",
+    "末端校准": "Final calibration",
+    "压缩计算量": "Cut compute cost",
+    "单独关一层不一定能省够计算量。比较几种层组合的代价。": "Switching off one layer may save too little compute. Compare the cost of different combinations.",
+    "输入编码": "Input encoding",
+    "注意力混合": "Attention mixing",
+    "特征投影": "Feature projection",
+    "输出平滑": "Output smoothing",
+    "输出校准": "Output calibration",
+    "保护两个任务": "Protect both tasks",
+    "一层对分类的影响很小，也可能对序列标注很重要。两项指标都要过线。": "A layer that does little for classification may still matter for sequence tagging. Meet both accuracy limits.",
+    "共享编码": "Shared encoder",
+    "全局池化": "Global pooling",
+    "位置混合": "Position mixing",
+    "通道投影": "Channel projection",
+    "辅助门控": "Auxiliary gating",
+    "识别层间协同": "Find layer interactions",
+    "全局池化与上下文门控同时开启时有协同贡献。先观察单层差值，再试组合。": "Global pooling and context gating contribute more together. Compare single-layer changes, then try combinations.",
+    "上下文门控": "Context gating",
+    "标注特征": "Tagging features",
+    "辅助投影": "Auxiliary projection",
+    "部署前的折中": "Balance deployment trade-offs",
+    "同时考虑协同、冗余和更紧的预算。找到可行方案后，还可以比较分数。": "Handle interactions, redundancy, and a tighter budget. Compare scores after finding a feasible configuration.",
+    "标注适配": "Tagging adapter",
+    "冗余校准": "Redundant calibration",
+    "计算量": "Compute cost",
+    "重玩": "Replay",
+    "本次未达成条件": "Requirements not met"
+  };
+  const label = zh => t(zh, words[zh] ?? zh);
+  const staticText = Array.from(document.querySelectorAll('[data-en]'), element => [element, element.textContent]);
+  const description = document.querySelector('meta[name=description]');
+  const chineseDescription = description.content;
+  const staticLabels = Array.from(document.querySelectorAll('[data-en-label]'), element => [element, element.getAttribute('aria-label')]);
+  const languageButton = document.querySelector('.game-nav .language');
+
+  function renderLanguage() {
+    document.documentElement.lang = t('zh-CN', 'en');
+    description.content = t(chineseDescription, "Five neural network ablation challenges on accuracy and compute cost.");
+    document.title = label('层叠消融');
+    for (const [element, zh] of staticText) element.textContent = t(zh, element.dataset.en);
+    for (const [element, zh] of staticLabels) element.setAttribute('aria-label', t(zh, element.dataset.enLabel));
+    languageButton.textContent = t('EN', '中文');
+    languageButton.setAttribute('aria-label', t('Switch to English', '切换到中文'));
+  }
+
+  function onLanguageChange(redraw) {
+    languageButton.addEventListener('click', () => {
+      gameLanguage = t('en', 'zh');
+      try { localStorage.setItem('mybian-language', gameLanguage); } catch {}
+      renderLanguage();
+      redraw();
+    });
+    renderLanguage();
+  }
+
 
     // Accuracy is stored in tenths of one percentage point.
     const levels = [
@@ -299,11 +370,11 @@
       const losses = baseline.accuracy.map((accuracy, task) => accuracy - result.accuracy[task]);
       const failures = [];
       if (result.off < level.minOff || result.off > (level.maxOff ?? Infinity)) {
-        failures.push(level.minOff === level.maxOff ? `请关闭 ${level.minOff} 层` : `至少关闭 ${level.minOff} 层`);
+        failures.push(level.minOff === level.maxOff ? t(`请关闭 ${level.minOff} 层`, `Disable exactly ${level.minOff}`) : t(`至少关闭 ${level.minOff} 层`, `Disable at least ${level.minOff}`));
       }
-      if (result.cost > (level.costLimit ?? Infinity)) failures.push(`计算量需降到 ${level.costLimit} 以内`);
+      if (result.cost > (level.costLimit ?? Infinity)) failures.push(t(`计算量需降到 ${level.costLimit} 以内`, `Reduce compute cost to ${level.costLimit} or less`));
       losses.forEach((loss, task) => {
-        if (loss > level.lossLimit[task]) failures.push(`${level.tasks[task]}下降超过 ${value(level.lossLimit[task])} 个百分点`);
+        if (loss > level.lossLimit[task]) failures.push(t(`${level.tasks[task]}下降超过 ${value(level.lossLimit[task])} 个百分点`, `${label(level.tasks[task])} dropped by more than ${value(level.lossLimit[task])} pp`));
       });
       const meanLossFraction = losses.reduce((sum, loss, task) => sum + Math.max(0, loss) / level.lossLimit[task], 0) / losses.length;
       const quality = .65 * (1 - meanLossFraction) + .35 * (1 - result.cost / baseline.cost);
@@ -322,36 +393,40 @@
 
     let current = 0;
     let mask = fullMask(levels[0]);
+    let lastResult = null;
     let records = Array(levels.length).fill(null);
     const scoreTotal = () => records.reduce((sum, record) => sum + (record?.score ?? 0), 0);
     const complete = () => records.every(Boolean);
+
+    const levelName = index => t(`第 ${index + 1} 关`, `Level ${index + 1}`);
+    const points = amount => t(`${amount} 分`, `${amount} pts`);
 
     function navigation() {
       const firstIncomplete = records.findIndex(record => !record);
       $('level-nav').replaceChildren(...levels.map((level, index) => {
         const button = document.createElement('button');
-        const suffix = records[index] ? '，已通过' : '';
+        const suffix = records[index] ? t('，已通过', ', cleared') : '';
         button.type = 'button';
         button.className = 'level-tab';
-        button.textContent = `第 ${index + 1} 关${records[index] ? ' ✓' : ''}`;
-        button.setAttribute('aria-label', `第 ${index + 1} 关，${level.title}${suffix}`);
+        button.textContent = `${levelName(index)}${records[index] ? ' ✓' : ''}`;
+        button.setAttribute('aria-label', `${levelName(index)}, ${label(level.title)}${suffix}`);
         if (index === current) button.setAttribute('aria-current', 'step');
         button.disabled = firstIncomplete >= 0 && index > firstIncomplete;
         button.addEventListener('click', () => enter(index));
         return button;
       }));
-      $('score').textContent = `${scoreTotal()} / 500 分`;
+      $('score').textContent = `${scoreTotal()} / ${points(500)}`;
     }
 
     function showMetrics(result = null) {
       const level = levels[current];
       const baseline = baselines[current];
       const rows = level.tasks.map((name, task) => [
-        name, `${value(baseline.accuracy[task])}%`,
+        label(name), `${value(baseline.accuracy[task])}%`,
         result ? `${value(result.accuracy[task])}%` : '—',
         result ? `${signed(value(-result.losses[task]))} pp` : '—',
       ]);
-      rows.push(['计算量', baseline.cost, result?.cost ?? '—', result ? signed(result.cost - baseline.cost) : '—']);
+      rows.push([label('计算量'), baseline.cost, result?.cost ?? '—', result ? signed(result.cost - baseline.cost) : '—']);
       $('metrics').replaceChildren(...rows.map(([label, ...values]) => {
         const row = document.createElement('tr');
         const heading = document.createElement('th');
@@ -364,27 +439,32 @@
     }
 
     function clearResult() {
-      $('feedback').hidden = true;
-      $('next').hidden = true;
-      $('activation-count').textContent = `已开启 ${levels[current].layers.filter((_, index) => layerOn(mask, index)).length} / ${levels[current].layers.length}`;
-      showMetrics();
+      lastResult = null;
+      renderResult();
     }
 
     function enter(index, focus = true) {
       current = index;
-      const level = levels[index];
-      mask = fullMask(level);
+      mask = fullMask(levels[index]);
+      lastResult = null;
       $('completion').hidden = true;
       $('game').hidden = false;
+      renderLevel();
+      if (focus) $('level-title').focus();
+    }
+
+    function renderLevel() {
+      const level = levels[current];
       $('return-summary').hidden = !complete();
-      $('level-title').textContent = level.title;
-      $('level-description').textContent = level.description;
-      $('layer-note').textContent = `固定开销 ${level.fixedCost} 单位。${level.interactions?.length ? `本关有 ${level.interactions.length} 组层间相互作用。` : '本关各层的贡献独立相加。'}`;
+      $('level-title').textContent = label(level.title);
+      $('level-description').textContent = label(level.description);
+      $('layer-note').textContent = t(`固定开销 ${level.fixedCost} 单位。`, `Fixed cost: ${level.fixedCost} units. `)
+        + (level.interactions?.length ? t(`本关有 ${level.interactions.length} 组层间相互作用。`, `Layer interactions: ${level.interactions.length}.`) : t('本关各层的贡献独立相加。', 'Layer contributions are additive.'));
       const rules = [
-        level.minOff === level.maxOff ? `恰好关闭 ${level.minOff} 层` : `至少关闭 ${level.minOff} 层`,
-        ...level.tasks.map((name, i) => `${name}下降不超过 ${value(level.lossLimit[i])} 个百分点`),
+        level.minOff === level.maxOff ? t(`恰好关闭 ${level.minOff} 层`, `Disable exactly ${level.minOff} layer(s)`) : t(`至少关闭 ${level.minOff} 层`, `Disable at least ${level.minOff} layer(s)`),
+        ...level.tasks.map((name, i) => t(`${name}下降不超过 ${value(level.lossLimit[i])} 个百分点`, `${label(name)} drop ≤ ${value(level.lossLimit[i])} pp`)),
       ];
-      if (level.costLimit !== undefined) rules.push(`计算量最多 ${level.costLimit} 单位`);
+      if (level.costLimit !== undefined) rules.push(t(`计算量最多 ${level.costLimit} 单位`, `Compute cost ≤ ${level.costLimit} units`));
       $('requirements').replaceChildren(...rules.map(rule => {
         const item = document.createElement('li');
         item.textContent = rule;
@@ -392,78 +472,95 @@
       }));
       for (const label of $('layers').querySelectorAll('.layer')) label.remove();
       level.layers.forEach((layer, i) => {
-        const label = document.createElement('label');
-        label.className = 'layer';
-        const parts = [['index', `L${i + 1}`], ['layer-title', layer.name], ['layer-cost', `${layer.cost} 单位`]];
+        const layerLabel = document.createElement('label');
+        layerLabel.className = 'layer';
+        const parts = [['index', `L${i + 1}`], ['layer-title', label(layer.name)], ['layer-cost', `${layer.cost} ${t('单位', 'units')}`]];
         for (const [className, text] of parts) {
           const span = document.createElement('span');
           span.className = className;
           span.textContent = text;
-          label.append(span);
+          layerLabel.append(span);
         }
         const toggle = document.createElement('input');
         toggle.type = 'checkbox';
-        toggle.checked = true;
-        toggle.setAttribute('aria-label', `启用 L${i + 1} ${layer.name}`);
+        toggle.checked = layerOn(mask, i);
+        toggle.setAttribute('aria-label', `${t('启用', 'Enable')} L${i + 1} ${label(layer.name)}`);
         toggle.addEventListener('change', () => {
           mask ^= 1 << i;
           clearResult();
         });
-        label.append(toggle);
-        $('layers').append(label);
+        layerLabel.append(toggle);
+        $('layers').append(layerLabel);
       });
       navigation();
-      clearResult();
-      if (focus) $('level-title').focus();
+      renderResult();
     }
 
-    function showCompletion() {
+    function showCompletion(focus = true) {
       $('game').hidden = true;
       $('completion').hidden = false;
-      $('final-score').textContent = `${scoreTotal()} / 500 分`;
+      $('final-score').textContent = `${scoreTotal()} / ${points(500)}`;
       $('summary-list').replaceChildren(...levels.map((level, index) => {
         const item = document.createElement('li');
         const title = document.createElement('strong');
         const score = document.createElement('span');
         const replay = document.createElement('button');
-        title.textContent = `第 ${index + 1} 关 · ${level.title}`;
-        score.textContent = `${records[index].score} 分`;
+        title.textContent = `${levelName(index)} · ${label(level.title)}`;
+        score.textContent = points(records[index].score);
         replay.type = 'button';
-        replay.textContent = '重玩';
-        replay.setAttribute('aria-label', `重玩第 ${index + 1} 关`);
+        replay.textContent = label('重玩');
+        replay.setAttribute('aria-label', t(`重玩第 ${index + 1} 关`, `Replay level ${index + 1}`));
         replay.addEventListener('click', () => enter(index));
         item.append(title, score, replay);
         return item;
       }));
-      $('completion-title').focus();
+      if (focus) $('completion-title').focus();
     }
 
-    function runAblation() {
-      const result = evaluate(levels[current], mask, baselines[current]);
-      const pass = !result.failures.length;
+    function renderResult() {
+      const level = levels[current];
+      const enabled = level.layers.filter((_, index) => layerOn(mask, index)).length;
+      const ratio = `${enabled} / ${level.layers.length}`;
+      $('activation-count').textContent = t(`已开启 ${ratio}`, `${ratio} active`);
+      showMetrics(lastResult);
       const feedback = $('feedback');
+      if (!lastResult) {
+        feedback.hidden = true;
+        $('next').hidden = true;
+        return;
+      }
+      const pass = !lastResult.failures.length;
       const headline = document.createElement('strong');
       const detail = document.createElement('p');
-      showMetrics(result);
       if (pass) {
-        const score = Math.round(100 * result.quality / bestQualities[current]);
+        const score = scoreFor(lastResult);
+        headline.textContent = t(`通过 · 本次 ${points(score)}`, `Passed · ${points(score)} this run`);
+        detail.textContent = t(`本关最高 ${points(records[current].score)}。可以比较另一种组合，或进入下一关。`,
+          `Best for this level: ${points(records[current].score)}. Try another combination or go to the next level.`);
+      } else {
+        headline.textContent = label('本次未达成条件');
+        detail.textContent = lastResult.failures.join(t('，', '. ')) + t('。', '.');
+      }
+      $('next').hidden = !pass;
+      feedback.className = `status ${pass ? 'pass' : 'fail'}`;
+      feedback.replaceChildren(headline, detail);
+      feedback.hidden = false;
+    }
+
+    const scoreFor = result => Math.round(100 * result.quality / bestQualities[current]);
+
+    function runAblation() {
+      lastResult = evaluate(levels[current], mask, baselines[current]);
+      if (!lastResult.failures.length) {
+        const score = scoreFor(lastResult);
         if (!records[current] || score > records[current].score) records[current] = { score };
         if (complete()) {
           showCompletion();
           return;
         }
-        headline.textContent = `通过 · 本次 ${score} 分`;
-        detail.textContent = `本关最高 ${records[current].score} 分。可以比较另一种组合，或进入下一关。`;
-        $('next').hidden = false;
         navigation();
-      } else {
-        headline.textContent = '本次未达成条件';
-        detail.textContent = result.failures.join('，') + '。';
-        $('next').hidden = true;
       }
-      feedback.className = `status ${pass ? 'pass' : 'fail'}`;
-      feedback.replaceChildren(headline, detail);
-      feedback.hidden = false;
+      renderResult();
     }
 
     function restart() {
@@ -478,9 +575,16 @@
       clearResult();
     });
     $('next').addEventListener('click', () => enter(current + 1));
-    $('return-summary').addEventListener('click', showCompletion);
+    $('return-summary').addEventListener('click', () => showCompletion());
     $('restart').addEventListener('click', restart);
     $('restart-completion').addEventListener('click', restart);
+    onLanguageChange(() => {
+      if (!$('completion').hidden) showCompletion(false);
+      else {
+        if (lastResult) lastResult = evaluate(levels[current], mask, baselines[current]);
+        renderLevel();
+      }
+    });
     enter(0, false);
   </script>
 </body>
