@@ -9,7 +9,7 @@
   <style>
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
-    :root { color: #000; background: #fff; font: 16px/1.5 Inter, system-ui, "Microsoft YaHei", sans-serif; }
+    :root { color: #000; background: #fff; font: 112.5%/1.5 Inter, system-ui, "Microsoft YaHei", sans-serif; }
     body { margin: 0; min-height: 100vh; background-color: #fff; isolation: isolate; transition: background-color .85s, color .65s; }
     body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 12%, #4b2019, transparent 67%); opacity: 0; transition: opacity 1s; }
     a[href] { color: #1858a1; text-underline-offset: .2em; }
@@ -24,13 +24,13 @@
     .top nav { display: flex; gap: .75rem; align-items: center; font-size: .9rem; }
     .language { min-height: 34px; padding: .18rem .58rem; }
     .intro { margin: 1.65rem 0 1.3rem; }
-    h1 { font-size: clamp(2.15rem, 5.2vw, 3.3rem); line-height: 1.13; }
+    h1 { font-size: clamp(2.15rem, 5.2vw + 2px, 3.3rem); line-height: 1.13; }
     .intro p { max-width: 46rem; margin-top: .55rem; }
     .levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .42rem; }
     .levels button { padding: .4rem .18rem; font-size: .88rem; }
     .levels button[aria-current="step"], .pieces button[aria-pressed="true"] { background: #eee; border-color: #000; font-weight: 700; }
     .stage { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem .65rem; margin: .95rem 0 .65rem; }
-    .stage h2 { font-size: clamp(1.25rem, 4.5vw, 1.67rem); }
+    .stage h2 { font-size: clamp(1.25rem, 4.5vw + 2px, 1.67rem); }
     .stage-stats { display: flex; flex-wrap: wrap; gap: .42rem; }
     .stat { flex: none; font-weight: 700; padding: .33rem .65rem; border: 1px solid #c6c6c6; border-radius: .48rem; font-variant-numeric: tabular-nums; }
     #timer { min-width: 4.4rem; text-align: center; }
@@ -64,7 +64,7 @@
     .admin-status { margin-top: .3rem; }
     #admin-levels { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
     .completion, .timeout, .achievement { margin-top: 1.25rem; }
-    .completion h2, .timeout h2, .achievement h2 { font-size: clamp(1.4rem, 5vw, 2rem); }
+    .completion h2, .timeout h2, .achievement h2 { font-size: clamp(1.4rem, 5vw + 2px, 2rem); }
     .completion output { display: block; font-size: 2.25rem; font-weight: 700; margin: .4rem 0; }
     .timeout p { margin: .4rem 0 .75rem; }
     .qualification { margin: .55rem 0 .72rem; }
@@ -244,7 +244,7 @@
     <noscript><p data-en="Enable JavaScript to play.">请启用 JavaScript 开始游戏。</p></noscript>
   </main>
   <footer class="wrap footer">
-    <span><span data-en="Last updated">更新于</span> <time datetime="2026-11-15">2026-11-15</time></span>
+    <span><span data-en="Last updated">更新于</span> <time datetime="2026-11-16">2026-11-16</time></span>
   </footer>
   <script>
     'use strict';
