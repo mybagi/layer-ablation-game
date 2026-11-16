@@ -161,7 +161,7 @@
         <h2 id="stage-title" tabindex="-1"></h2>
         <div class="stage-stats">
           <output id="timer" class="stat" role="timer" aria-label="本关剩余时间" data-en-label="Time remaining for this level"></output>
-          <output id="score" class="stat" aria-label="本关可得分数" data-en-label="Score if you solve this level now"></output>
+          <output id="score" class="stat" aria-label="当前得分" data-en-label="Current score"></output>
           <output id="attempts" class="stat" aria-label="本关错误提交次数" data-en-label="Wrong submissions this level"></output>
         </div>
       </div>
@@ -169,7 +169,7 @@
         <summary data-en="How to play and score">玩法与计分</summary>
         <ul>
           <li data-en="Slide each piece without rotating it. Even overlaps disappear and odd overlaps remain. Match the target, then select Submit.">平移每块图形，保持原方向。重叠区域逢偶相消、逢奇保留。拼出目标后，点击「提交答案」。</li>
-          <li data-en="Each level starts at 10 points and is scored separately. Each wrong submission costs 1 point, and each full minute left can add back 1 point. The score ranges from 0 to 10. A correct answer needs at least 6 points to advance.">每关独立计分，基础 10 分。每次错答扣 1 分，剩余每整分钟可补回 1 分，每关得分为 0 到 10 分。答对且至少 6 分才能晋级。</li>
+          <li data-en="Each level starts at 10 points. Each wrong submission immediately deducts 1 point. After a correct answer, each full minute left adds back 1 point, up to 10. A score of at least 6 is needed to advance.">每关从 10 分开始，每次错答立即扣 1 分。答对结算时，剩余每整分钟可补回 1 分，满分 10 分。答对且至少 6 分才能晋级。</li>
           <li data-en="Clear all five levels and earn a full 10 points on level 5 to unlock level 6. The results show each level’s best score.">通过前五关，且第五关拿到满分 10 分，解锁隐藏第六关。通关结果显示各关最高分。</li>
         </ul>
       </details>
@@ -580,15 +580,14 @@
       $('attempts').textContent = t(`错答 ${wrongAttempts} 次`, `Wrong: ${wrongAttempts}`);
     }
 
-    function levelScore(remaining) {
+    function levelScore(remaining = 0) {
       const minuteBonus = Math.floor(remaining / 60000);
       return Math.max(0, Math.min(maxLevelScore, maxLevelScore + minuteBonus - wrongAttempts));
     }
 
-    function updateScore(remaining = deadline - performance.now()) {
-      const points = pointsText(levelScore(remaining));
-      const label = t(`本关可得 ${points}`, `This level: ${points}`);
-      if ($('score').textContent !== label) $('score').textContent = label;
+    function updateScore() {
+      const points = levelScore();
+      $('score').textContent = t(`当前得分 ${points} 分`, `Current score: ${points} pts`);
     }
 
     function renderPieces() {
@@ -634,12 +633,10 @@
     function updateClock() {
       if (stageState !== 'playing') return false;
       const now = performance.now();
-      const remaining = deadline - now;
-      const left = Math.max(0, Math.ceil(remaining / 1000));
+      const left = Math.max(0, Math.ceil((deadline - now) / 1000));
       const formatted = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
       if ($('timer').textContent !== formatted) $('timer').textContent = formatted;
       if (left > 0) {
-        updateScore(remaining);
         if (peekEnds && now >= peekEnds) {
           peekEnds = 0;
           renderMemory();
