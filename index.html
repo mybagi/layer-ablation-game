@@ -249,9 +249,8 @@
     <noscript><p data-en="Enable JavaScript to play.">请启用 JavaScript 开始游戏。</p></noscript>
   </main>
   <footer class="wrap footer">
-    <span><span data-en="Last updated">更新于</span> <time datetime="2026-11-16">2026-11-16</time></span>
+    <span><span data-en="Last updated">更新于</span> <time datetime="2026-11-17">2026-11-17</time></span>
   </footer>
-  <script src="./vendor/opencc-cn2t.js"></script>
   <script src="./locale.js"></script>
   <script>
     'use strict';
@@ -419,7 +418,7 @@
     };
     const languageSelect = $('language');
     const locale = window.siteLocale;
-    let lang = locale.read('zh');
+    let lang;
     const t = (zh, en) => locale.text(lang, zh, en);
     const staticCopy = Array.from(document.querySelectorAll('[data-en]'), element => [element, element.textContent]);
     const meta = document.querySelector('meta[name=description]');
@@ -1123,17 +1122,21 @@
     window.addEventListener('pageshow', event => { if (event.persisted) restart(); });
 
     function displayLanguage() {
-      locale.apply(languageSelect, lang);
       document.title = t('层叠消融', 'Layer Overlay Puzzle');
       meta.content = t(chineseDescription, 'Match the target using odd and even overlaps across five timed, randomly generated puzzles.');
       for (const [element, zh] of staticCopy) element.textContent = t(zh, element.dataset.en);
       for (const [element, zh] of staticLabels) element.setAttribute('aria-label', t(zh, element.dataset.enLabel));
     }
 
-    languageSelect.addEventListener('change', () => {
-      lang = languageSelect.value;
-      locale.save(lang);
+    locale.bind(languageSelect, 'zh', selected => {
+      const firstRender = lang === undefined;
+      lang = selected;
       displayLanguage();
+      if (firstRender) {
+        languageSelect.disabled = false;
+        enter(0, false);
+        return;
+      }
       if (!$('completion').hidden) showResults(false);
       else if (stageState === 'playing') {
         renderProgress();
@@ -1143,10 +1146,6 @@
       else if (!$('achievement').hidden) displayAchievement();
       renderAdmin();
     });
-
-    displayLanguage();
-    languageSelect.disabled = false;
-    enter(0, false);
   </script>
 </body>
 </html>
