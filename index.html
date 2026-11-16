@@ -161,7 +161,7 @@
         <h2 id="stage-title" tabindex="-1"></h2>
         <div class="stage-stats">
           <output id="timer" class="stat" role="timer" aria-label="本关剩余时间" data-en-label="Time remaining for this level"></output>
-          <output id="score" class="stat" aria-label="累计分数" data-en-label="Total score"></output>
+          <output id="score" class="stat" aria-label="本关可得分数" data-en-label="Score if you solve this level now"></output>
           <output id="attempts" class="stat" aria-label="本关错误提交次数" data-en-label="Wrong submissions this level"></output>
         </div>
       </div>
@@ -169,8 +169,8 @@
         <summary data-en="How to play and score">玩法与计分</summary>
         <ul>
           <li data-en="Slide each piece without rotating it. Even overlaps disappear and odd overlaps remain. Match the target, then select Submit.">平移每块图形，保持原方向。重叠区域逢偶相消、逢奇保留。拼出目标后，点击「提交答案」。</li>
-          <li data-en="Start with 10 points. Add 1 per full minute left and deduct 1 per wrong submission. A correct answer needs at least 6 points to advance.">基础 10 分，每剩一整分钟加 1 分，每次提交错误扣 1 分。答对且至少 6 分才能晋级。</li>
-          <li data-en="Clear all five levels and score at least 10 on level 5 to unlock level 6. Replays keep your best score.">通过前五关，且第五关至少 10 分，解锁隐藏第六关。重玩保留本关最高分。</li>
+          <li data-en="Each level starts at 10 points and is scored separately. Each wrong submission costs 1 point, and each full minute left can add back 1 point. The score ranges from 0 to 10. A correct answer needs at least 6 points to advance.">每关独立计分，基础 10 分。每次错答扣 1 分，剩余每整分钟可补回 1 分，每关得分为 0 到 10 分。答对且至少 6 分才能晋级。</li>
+          <li data-en="Clear all five levels and earn a full 10 points on level 5 to unlock level 6. The results show each level’s best score.">通过前五关，且第五关拿到满分 10 分，解锁隐藏第六关。通关结果显示各关最高分。</li>
         </ul>
       </details>
       <div class="boards">
@@ -202,14 +202,13 @@
     <section id="timeout" class="timeout panel" aria-labelledby="timeout-title" hidden>
       <h2 id="timeout-title" tabindex="-1"></h2>
       <p id="failure-score" hidden></p>
-      <p data-en="Retry this level with a new puzzle. Points from cleared levels are saved.">可以用一道新题重试本关，已通过的关卡保留得分。</p>
+      <p data-en="Retry with a new puzzle and a fresh score for this level. Your previous best scores stay in the results.">重试会生成新题，本关重新计分。通关成绩会保留各关最高分。</p>
       <button id="retry" type="button" class="primary" data-en="Retry this level">重试本关</button>
     </section>
     <section id="completion" class="completion panel" aria-labelledby="completion-title" hidden>
       <h2 id="completion-title" tabindex="-1" data-en="Congratulations! All five levels cleared.">恭喜，五关全部通过！</h2>
-      <output id="final-score" aria-label="最终得分" data-en-label="Final score"></output>
-      <ul id="results" class="results"></ul>
-      <p id="hidden-qualification" class="qualification" data-en="Replay level 5 and score at least 10 to unlock the hidden level." hidden>重玩第五关，得分至少 10 分即可解锁隐藏关。</p>
+      <ul id="results" class="results" aria-label="各关最高分" data-en-label="Best score for each level"></ul>
+      <p id="hidden-qualification" class="qualification" data-en="Replay level 5 and earn a full 10 points to unlock the hidden level." hidden>重玩第五关并获得满分 10 分，即可解锁隐藏关。</p>
       <button id="restart" type="button" class="primary" data-en="Play again">重新挑战</button>
       <aside id="hidden-offer" class="hidden-offer" aria-labelledby="hidden-offer-title" hidden>
         <h3 id="hidden-offer-title" tabindex="-1" data-en="Hidden level unlocked">隐藏第六关已开启</h3>
@@ -390,8 +389,8 @@
       return candidate;
     }
 
+    const maxLevelScore = 10;
     const passingScore = 6;
-    const hiddenUnlockScore = 10;
     const captions = [
       ['多块叠合', 'First overlays'],
       ['交错拼接', 'Interlocking outlines'],
@@ -466,10 +465,8 @@
     const puzzle = () => activePuzzle;
     const normalScores = () => bestScores.slice(0, hiddenIndex);
     const cleared = () => normalScores().every(value => value !== null);
-    const eligibleForHidden = () => cleared() && bestScores[hiddenIndex - 1] >= hiddenUnlockScore;
-    const score = () => normalScores().reduce((sum, value) => sum + (value ?? 0), 0);
-    const pointsText = value => t(`${value} 分`, `${value} pts`);
-    const scoreText = () => pointsText(score());
+    const eligibleForHidden = () => cleared() && bestScores[hiddenIndex - 1] === maxLevelScore;
+    const pointsText = value => t(`${value}/${maxLevelScore} 分`, `${value}/${maxLevelScore} pts`);
     const levelText = index => t(`第 ${index + 1} 关`, `Level ${index + 1}`);
     const pieceText = index => t(`图块 ${index + 1}`, `Piece ${index + 1}`);
     const coordinates = (piece, axis) => piece.flatMap(tile => [tile[axis], tile[axis + 2], tile[axis + 4]]);
@@ -574,13 +571,24 @@
         return button;
       }));
       $('stage-title').textContent = t(...captions[current]);
-      $('score').textContent = scoreText();
+      updateScore();
       updateAttempts();
       $('back-results').hidden = !cleared();
     }
 
     function updateAttempts() {
       $('attempts').textContent = t(`错答 ${wrongAttempts} 次`, `Wrong: ${wrongAttempts}`);
+    }
+
+    function levelScore(remaining) {
+      const minuteBonus = Math.floor(remaining / 60000);
+      return Math.max(0, Math.min(maxLevelScore, maxLevelScore + minuteBonus - wrongAttempts));
+    }
+
+    function updateScore(remaining = deadline - performance.now()) {
+      const points = pointsText(levelScore(remaining));
+      const label = t(`本关可得 ${points}`, `This level: ${points}`);
+      if ($('score').textContent !== label) $('score').textContent = label;
     }
 
     function renderPieces() {
@@ -626,10 +634,12 @@
     function updateClock() {
       if (stageState !== 'playing') return false;
       const now = performance.now();
-      const left = Math.max(0, Math.ceil((deadline - now) / 1000));
+      const remaining = deadline - now;
+      const left = Math.max(0, Math.ceil(remaining / 1000));
       const formatted = `${String(Math.floor(left / 60)).padStart(2, '0')}:${String(left % 60).padStart(2, '0')}`;
       if ($('timer').textContent !== formatted) $('timer').textContent = formatted;
       if (left > 0) {
+        updateScore(remaining);
         if (peekEnds && now >= peekEnds) {
           peekEnds = 0;
           renderMemory();
@@ -722,7 +732,6 @@
       $('timeout').hidden = true;
       $('achievement').hidden = true;
       $('completion').hidden = false;
-      $('final-score').textContent = scoreText();
       $('results').replaceChildren(...normalScores().map((value, index) => {
         const row = document.createElement('li');
         const text = document.createElement('span');
@@ -787,8 +796,9 @@
     }
 
     function displayAchievement() {
+      const points = pointsText(bestScores[hiddenIndex]);
       $('achievement-score').textContent = t(
-        `隐藏关最高分：${bestScores[hiddenIndex]} 分`, `Best score on the hidden level: ${bestScores[hiddenIndex]} pts`,
+        `隐藏关最高分 ${points}`, `Hidden level best: ${points}`,
       );
     }
 
@@ -847,6 +857,7 @@
     function rejectSubmission(key) {
       wrongAttempts++;
       updateAttempts();
+      updateScore();
       say(key);
     }
 
@@ -864,7 +875,7 @@
       }
       const remaining = deadline - performance.now();
       if (remaining <= 0) { showFailure(); return; }
-      const value = 10 + Math.floor(remaining / 60000) - wrongAttempts;
+      const value = levelScore(remaining);
       if (value < passingScore) { showFailure(value); return; }
       finishCurrent(value);
     }
@@ -1099,11 +1110,11 @@
       }
     });
     $('admin-pass-current').addEventListener('click', () => {
-      if (adminAuthorized && stageState !== 'finished') finishCurrent(10 + durations[current]);
+      if (adminAuthorized && stageState !== 'finished') finishCurrent(maxLevelScore);
     });
     $('admin-pass-all').addEventListener('click', () => {
       if (!adminAuthorized) return;
-      bestScores = durations.map(minutes => 10 + minutes);
+      bestScores = durations.map(() => maxLevelScore);
       cancelReveal();
       document.body.classList.add('hell');
       current = hiddenIndex;

@@ -8,9 +8,9 @@
 
 可将图块直接拖到棋盘上，也可选中图块后点按锚点的位置。键盘用户可聚焦棋盘，用方向键移动锚点，按回车放置。每个图块使用一次，保持原方向。拼出目标后，点击「提交答案」。
 
-前五关的时间分别为 10、9、8、7、6 分钟。每关基础 10 分，提交正确答案时，每剩一整分钟加 1 分，每次错误提交扣 1 分，图块未放齐也算一次错误。答对且至少 6 分即可进入下一关。低于 6 分或超时可以重试。每次进入或重试都会生成新题，每关只保留最高分。
+前五关的时间分别为 10、9、8、7、6 分钟。进入或重试时会生成新题，本关从 10 分重新计分。每次错答扣 1 分，图块未放齐也算错答。提交正确答案时，剩余每整分钟可补回 1 分。每关得分为 0 到 10 分，答对且至少 6 分即可晋级。成绩页显示各关最高分。
 
-通过前五关且第五关至少 10 分后，可选择进入五分钟的隐藏关。可重玩第五关提高成绩。隐藏关也按同一规则计分，至少 6 分通过。开始作答后目标图形隐藏，每次复看会锁定棋盘 10 秒，倒计时继续。通过隐藏关可获得「消融之王」称号。
+通过前五关且第五关获得满分 10 分后，可选择进入五分钟的隐藏关。可重玩第五关提高成绩。隐藏关也按同一规则独立计分，至少 6 分通过。开始作答后目标图形隐藏，每次复看会锁定棋盘 10 秒，倒计时继续。通过隐藏关可获得「消融之王」称号。
 
 ## 玩法来源
 
@@ -20,9 +20,9 @@
 
 Clone or download the repository, keep its folder structure, and open `index.html` in a browser. The game runs offline. Use the language menu to choose English, Simplified Chinese, or Traditional Chinese. Drag the filled pieces into position, or select a piece and tap its anchor point. Regions with even coverage disappear. Regions with odd coverage remain. Choose Submit answer once your board matches the target.
 
-The five levels have 10, 9, 8, 7, and 6 minutes, respectively. Each entry or retry generates a new puzzle. A correct submission earns 10 points plus one per full minute left, minus one per wrong or incomplete submission. A score of at least 6 advances you immediately. Each level keeps its best score.
+The five levels have 10, 9, 8, 7, and 6 minutes, respectively. Each entry or retry generates a new puzzle and starts scoring at 10. A wrong or incomplete submission costs one point. When you submit the correct answer, each full minute left can add back one point. Each level has its own score from 0 to 10. A correct answer worth at least 6 points advances you immediately. The results show the best score for each level.
 
-Clear all five levels and earn at least 10 on level 5 to unlock the optional five-minute hidden level. Replay level 5 to improve your score. The hidden target disappears after the first placement. Viewing it again locks the board for ten seconds while the clock continues. A correct submission worth at least 6 points earns the Master of Overlays title.
+Clear all five levels and earn a full 10 points on level 5 to unlock the optional five-minute hidden level. Replay level 5 to improve your score. The hidden level has its own score from 0 to 10. Its target disappears after the first placement. Viewing it again locks the board for ten seconds while the clock continues. A correct submission worth at least 6 points earns the Master of Overlays title.
 
 ## 管理入口 · Administrator
 
