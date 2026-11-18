@@ -7,10 +7,11 @@
   <meta name="description" content="在倒计时内按奇偶消融规则拼出目标图形，挑战五道随机题。">
   <title>层叠消融</title>
   <style>
+  :root { --site-font-increase: 1pt; }
     * { box-sizing: border-box; }
     [hidden] { display: none !important; }
     :root { color: #000; background: #fff; font: 112.5%/1.5 Inter, system-ui, "Microsoft YaHei", sans-serif; }
-    body { margin: 0; min-height: 100vh; background-color: #fff; isolation: isolate; transition: background-color .85s, color .65s; }
+    body { font-size: calc(1rem + var(--site-font-increase)); margin: 0; min-height: 100vh; background-color: #fff; isolation: isolate; transition: background-color .85s, color .65s; }
     body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 12%, #4b2019, transparent 67%); opacity: 0; transition: opacity 1s; }
     a[href] { color: #1858a1; text-underline-offset: .2em; }
     button { font: inherit; color: inherit; min-height: 44px; padding: .42rem .72rem; border: 1px solid #ccc; border-radius: .48rem; background: #fff; cursor: pointer; }
@@ -20,41 +21,41 @@
     h1, h2, h3, p { margin: 0; }
     .wrap { width: min(960px, calc(100% - 2rem)); margin-inline: auto; }
     .top { min-height: 60px; display: flex; justify-content: space-between; align-items: center; gap: .8rem; border-bottom: 1px solid #ddd; }
-    .top strong { font-size: .92rem; }
-    .top nav { display: flex; gap: .75rem; align-items: center; font-size: .9rem; }
+    .top strong { font-size: calc(.92rem + var(--site-font-increase)); }
+    .top nav { display: flex; gap: .75rem; align-items: center; font-size: calc(.9rem + var(--site-font-increase)); }
     .language { min-height: 34px; padding: .18rem .4rem; border: 1px solid #ccc; border-radius: .48rem; color: #000; background: #fff; font: inherit; }
     .intro { margin: 1.65rem 0 1.3rem; }
-    h1 { font-size: clamp(2.15rem, 5.2vw + 2px, 3.3rem); line-height: 1.13; }
+    h1 { font-size: calc(clamp(2.15rem, 5.2vw + 2px, 3.3rem) + var(--site-font-increase)); line-height: 1.13; }
     .intro p { max-width: 46rem; margin-top: .55rem; }
     .levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .42rem; }
-    .levels button { padding: .4rem .18rem; font-size: .88rem; }
+    .levels button { padding: .4rem .18rem; font-size: calc(.88rem + var(--site-font-increase)); }
     .levels button[aria-current="step"], .pieces button[aria-pressed="true"] { background: #eee; border-color: #000; font-weight: 700; }
     .stage { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem .65rem; margin: .95rem 0 .65rem; }
-    .stage h2 { font-size: clamp(1.25rem, 4.5vw + 2px, 1.67rem); }
+    .stage h2 { font-size: calc(clamp(1.25rem, 4.5vw + 2px, 1.67rem) + var(--site-font-increase)); }
     .stage-stats { display: flex; flex-wrap: wrap; gap: .42rem; }
     .stat { flex: none; font-weight: 700; padding: .33rem .65rem; border: 1px solid #c6c6c6; border-radius: .48rem; font-variant-numeric: tabular-nums; }
     #timer { min-width: 4.4rem; text-align: center; }
     .boards { display: grid; grid-template-columns: minmax(150px, .72fr) minmax(0, 1fr); gap: .9rem; align-items: start; }
     .panel { min-width: 0; padding: .7rem; border: 1px solid #ddd; border-radius: .7rem; }
-    .panel h3 { font-size: 1rem; }
+    .panel h3 { font-size: calc(1rem + var(--site-font-increase)); }
     .board { display: block; width: 100%; aspect-ratio: 1; margin: .4rem auto 0; border: 1px solid #43526a; border-radius: .45rem; background: radial-gradient(ellipse at center, #26334a, #141b28); }
     .target-window { position: relative; }
     .target-window .concealed { visibility: hidden; }
-    .target-message { position: absolute; inset: 0; display: grid; place-items: center; padding: .55rem; text-align: center; color: #eee1d6; background: #2a1614; border: 1px solid #674033; border-radius: .45rem; font-size: .92rem; }
+    .target-message { position: absolute; inset: 0; display: grid; place-items: center; padding: .55rem; text-align: center; color: #eee1d6; background: #2a1614; border: 1px solid #674033; border-radius: .45rem; font-size: calc(.92rem + var(--site-font-increase)); }
     #peek { margin-top: .45rem; }
     .play-board { touch-action: none; cursor: crosshair; }
-    .piece-guide { margin: .85rem 0 .42rem; font-size: .91rem; }
+    .piece-guide { margin: .85rem 0 .42rem; font-size: calc(.91rem + var(--site-font-increase)); }
     .pieces { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: .4rem; }
-    .pieces button { display: grid; justify-items: center; min-width: 0; gap: .28rem; padding: .3rem .25rem; font-size: .78rem; cursor: grab; touch-action: none; }
+    .pieces button { display: grid; justify-items: center; min-width: 0; gap: .28rem; padding: .3rem .25rem; font-size: calc(.78rem + var(--site-font-increase)); cursor: grab; touch-action: none; }
     .pieces button:active { cursor: grabbing; }
     .pieces canvas { width: min(100%, 72px); aspect-ratio: 1; display: block; background: #1e293a; border-radius: .28rem; }
     .actions { margin-top: .8rem; display: flex; flex-wrap: wrap; gap: .4rem; }
     .primary { border-color: #111; background: #eee; font-weight: 700; }
     .primary:not(:disabled):hover { background: #e3e3e3; }
-    .feedback { min-height: 1.5em; margin-top: .55rem; font-size: .92rem; }
+    .feedback { min-height: 1.5em; margin-top: .55rem; font-size: calc(.92rem + var(--site-font-increase)); }
     .board-tools { margin: .8rem 0 1rem; padding: .82rem .95rem; border: 2px solid #aaa; border-radius: .55rem; background: #f5f5f5; }
-    .board-tools summary { cursor: pointer; font-size: 1.25rem; font-weight: 700; }
-    .board-tools ul { margin: .45rem 0 0; padding-inline-start: 1.26rem; font-size: 1.0625rem; }
+    .board-tools summary { cursor: pointer; font-size: calc(1.25rem + var(--site-font-increase)); font-weight: 700; }
+    .board-tools ul { margin: .45rem 0 0; padding-inline-start: 1.26rem; font-size: calc(1.0625rem + var(--site-font-increase)); }
     .board-tools li + li { margin-top: .28rem; }
     .admin-tools { margin-top: 1rem; }
     .admin-tools summary { cursor: pointer; font-weight: 600; }
@@ -64,15 +65,15 @@
     .admin-status { margin-top: .3rem; }
     #admin-levels { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
     .completion, .timeout, .achievement { margin-top: 1.25rem; }
-    .completion h2, .timeout h2, .achievement h2 { font-size: clamp(1.4rem, 5vw + 2px, 2rem); }
-    .completion output { display: block; font-size: 2.25rem; font-weight: 700; margin: .4rem 0; }
+    .completion h2, .timeout h2, .achievement h2 { font-size: calc(clamp(1.4rem, 5vw + 2px, 2rem) + var(--site-font-increase)); }
+    .completion output { display: block; font-size: calc(2.25rem + var(--site-font-increase)); font-weight: 700; margin: .4rem 0; }
     .timeout p { margin: .4rem 0 .75rem; }
     .qualification { margin: .55rem 0 .72rem; }
     .fireworks { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
     .hidden-offer { margin-top: .95rem; padding: .9rem; border: 1px solid #8b4936; border-radius: .55rem; }
     .hidden-offer p, .achievement p { margin: .35rem 0 .65rem; }
     .achievement { text-align: center; padding-block: 1.7rem; }
-    .achievement-mark { display: grid; place-items: center; width: 74px; aspect-ratio: 1; margin: 0 auto .68rem; border: 2px solid #d48454; border-radius: 50%; background: radial-gradient(circle, #6a2d1f 49%, #321716 50%, #321716 59%, #a45d3b 60%, #452019 62%); color: #ffe4bb; font: 2.5rem/1 system-ui, sans-serif; }
+    .achievement-mark { display: grid; place-items: center; width: 74px; aspect-ratio: 1; margin: 0 auto .68rem; border: 2px solid #d48454; border-radius: 50%; background: radial-gradient(circle, #6a2d1f 49%, #321716 50%, #321716 59%, #a45d3b 60%, #452019 62%); color: #ffe4bb; font: calc(2.5rem + var(--site-font-increase))/1 system-ui, sans-serif; }
     .hell { background-color: #170c0c; color: #fff1e8; }
     .hell::before { opacity: 1; }
     .hell .panel, .hell .hidden-offer, .hell .board-tools { background: #241310; border-color: #95634f; }
@@ -123,7 +124,7 @@
     }
     .results { margin: .5rem 0 .8rem; padding: 0; list-style: none; }
     .results li { display: flex; align-items: center; justify-content: space-between; gap: .55rem; padding: .36rem 0; border-top: 1px solid #ddd; }
-    .footer { margin-top: 1.2rem; padding: .85rem 0 1.4rem; font-size: .83rem; border-top: 1px solid #ddd; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; }
+    .footer { margin-top: 1.2rem; padding: .85rem 0 1.4rem; font-size: calc(.83rem + var(--site-font-increase)); border-top: 1px solid #ddd; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem .8rem; }
     @media (max-width: 570px) {
       .wrap { width: calc(100% - 1.3rem); }
       .intro { margin: 1.05rem 0 .8rem; }
