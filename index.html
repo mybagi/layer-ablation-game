@@ -20,6 +20,9 @@
     :focus-visible { outline: 2px solid #111; outline-offset: 3px; }
     h1, h2, h3, p { margin: 0; }
     .wrap { width: min(960px, calc(100% - 2rem)); margin-inline: auto; }
+    @media (min-width: 1024px) {
+      .wrap { width: calc(min(960px, 100% - 2rem) - 2cm); }
+    }
     .top { min-height: 60px; display: flex; justify-content: space-between; align-items: center; gap: .8rem; border-bottom: 1px solid #ddd; }
     .top strong { font-size: calc(.92rem + var(--site-font-increase)); }
     .top nav { display: flex; gap: .75rem; align-items: center; font-size: calc(.9rem + var(--site-font-increase)); }
